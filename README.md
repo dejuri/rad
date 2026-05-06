@@ -10,6 +10,9 @@ even easier to call it just rad.
 
 It stays for managing system packages, user ones is better to manage with [nix](https://github.com/NixOS/nix) or other
 
+## Installing GNU hello with rad
+
+![Showcase](https://raw.githubusercontent.com/dejuri/rad/refs/heads/main/preview.gif)
 ## Installation
 
 To install it, firstly clone the repository
