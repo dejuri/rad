@@ -351,7 +351,8 @@ pub fn merge_dir(root: &Path, current: &Path, target_base: &Path) -> std::io::Re
         if src_path.is_dir() {
             fs::create_dir_all(&dest_path)?;
             merge_dir(root, &src_path, target_base)?;
-        } else {
+        }
+        else {
             atomic_install(&src_path, &dest_path)?;
         }
     }
