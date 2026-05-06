@@ -11,7 +11,7 @@ use std::collections::HashSet;
 fn main() {
     let config = load_config();
     let args: Vec<String> = env::args().collect();
-    let version = "0.2.1";
+    let version = option_env!("CARGO_PKG_VERSION").unwrap_or("unknown");
     let prefix = "/usr";
     if args.len() < 2 {
         eprintln!("[rad] {} please specify a valid argument, use -h or --help", "error:".red());
@@ -46,7 +46,7 @@ fn main() {
             REPO\n    \
             - url: {}", multilib_status, config.repo.url);
         }
-        "-V" | "--version" => println!("rad version: {}", version),
+        "-V" | "--version" => println!("rad - {}\n  version: {}", "Radrix Automated TOML-packages Handler".bold(), version.yellow()),
 
         "-i" | "--install" => {
             let mut processing = HashSet::new();

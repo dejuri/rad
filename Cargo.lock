@@ -53,7 +53,7 @@ dependencies = [
 
 [[package]]
 name = "rad"
-version = "0.2.1"
+version = "26.5.6"
 dependencies = [
  "colored",
  "serde",
