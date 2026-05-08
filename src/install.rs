@@ -6,6 +6,7 @@ use colored::Colorize;
 use std::io::Write;
 use crate::config::load_config;
 use crate::package::{Package, BuildSystem, parse_package, fetch_package};
+use std::os::unix::fs as unix_fs;
 
 pub fn install_package(pkg_name: &str, prefix: &str, processing: &mut HashSet<String>) {
     let config = load_config();
@@ -51,44 +52,31 @@ pub fn install_package(pkg_name: &str, prefix: &str, processing: &mut HashSet<St
         processing.remove(pkg_name);
         return;
     }
+
+    // 32 bit build if needed
+    if config.arch.multilib && pkg.multilib_support {
+        println!("[rad] this package is multilib, so i build 32-bit version now");
+        if let Err(e) = build_and_install(&pkg, &src_dir, prefix, &dest_dir, true) {
+            eprintln!("[rad] {} {}", "multilib build error:".red(), e);
+            processing.remove(pkg_name);
+            return;
+        }
+    }
+
+    // Now go register
     println!("[rad] indexing files for {}...", pkg_name);
     if let Err(e) = register_package_files(pkg_name, &dest_dir) {
         eprintln!("[rad] registration error: {}", e);
     }
+
+    // And now merging
     if let Err(e) = merge_to_system(&dest_dir) {
         eprintln!("[rad] {} {}", "merge error:".red(), e);
         processing.remove(pkg_name);
         return;
     }
+
     let _ = fs::remove_dir_all(&dest_dir);
-
-    // 32 bit build if needed
-    if config.arch.multilib && pkg.multilib_support {
-        println!("[rad] multilib enabled, building 32-bit flavor of {}...", pkg_name);
-        let dest_dir_m32 = format!("/tmp/rad/image/{}-m32", pkg_name);
-        let _ = fs::remove_dir_all(&dest_dir_m32);
-        fs::create_dir_all(&dest_dir_m32).unwrap();
-
-        if let Err(e) = build_and_install(&pkg, &src_dir, prefix, &dest_dir_m32, true) {
-            eprintln!("[rad] {} {}", "multilib build error:".red(), e);
-            processing.remove(pkg_name);
-            return;
-        }
-
-        let m32_name = format!("{}-m32", pkg_name);
-        println!("[rad] indexing 32-bit files for {}...", m32_name);
-        if let Err(e) = register_package_files(&m32_name, &dest_dir_m32) {
-            eprintln!("[rad] registration error (m32): {}", e);
-        }
-
-        if let Err(e) = merge_to_system(&dest_dir_m32) {
-            eprintln!("[rad] {} {}", "m32 merge error:".red(), e);
-            processing.remove(pkg_name);
-            return;
-        }
-        let _ = fs::remove_dir_all(&dest_dir_m32);
-    }
-
     let build_dir = format!("/tmp/rad/build/{}", pkg_name);
     let _ = fs::remove_dir_all(&build_dir);
 
@@ -344,33 +332,39 @@ pub fn merge_to_system(dest_dir: &str) -> Result<(), String> {
 
 pub fn merge_dir(root: &Path, current: &Path, target_base: &Path) -> std::io::Result<()> {
     for entry in fs::read_dir(current)? {
-        let entry    = entry?;
+        let entry = entry?;
+        let file_type = entry.file_type()?;
         let src_path = entry.path();
-        let relative  = src_path.strip_prefix(root).unwrap();
+        let relative = src_path.strip_prefix(root).unwrap();
         let dest_path = target_base.join(relative);
-        if src_path.is_dir() {
+        if file_type.is_dir() {
             fs::create_dir_all(&dest_path)?;
             merge_dir(root, &src_path, target_base)?;
-        }
-        else {
+        } else {
             atomic_install(&src_path, &dest_path)?;
         }
     }
     Ok(())
 }
+
+// Atomic install
 pub fn atomic_install(src: &Path, dest: &Path) -> std::io::Result<()> {
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent)?;
     }
-    let tmp = dest.with_extension(
-        format!("{}.rad_new",
-            dest.extension().and_then(|e| e.to_str()).unwrap_or(""))
-    );
-    fs::copy(src, &tmp)?;
-    if let Ok(meta) = fs::metadata(src) {
+    let meta = fs::symlink_metadata(src)?;
+    if meta.file_type().is_symlink() {
+        let target = fs::read_link(src)?;
+        if dest.exists() {
+            let _ = fs::remove_file(dest);
+        }
+        unix_fs::symlink(target, dest)?;
+    } else {
+        let tmp = dest.with_extension(format!("rad_new"));
+        fs::copy(src, &tmp)?;
         let _ = fs::set_permissions(&tmp, meta.permissions());
+        fs::rename(&tmp, dest)?;
     }
-    fs::rename(&tmp, dest)?;
     Ok(())
 }
 
