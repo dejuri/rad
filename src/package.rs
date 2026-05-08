@@ -36,13 +36,13 @@ pub fn fetch_package(pkg_name: &str) -> Result<String, String> {
     let config = load_config();
     let local_path = format!("{}.toml", pkg_name);
     if Path::new(&local_path).exists() {
-        println!("[rad] using local {}", local_path);
+        // println!("[rad] using local {}", local_path);
         return Ok(local_path);
     }
     let url  = format!("{}/{}.toml", config.repo.url, pkg_name);
     let dest = format!("/tmp/rad/tomls/{}.toml", pkg_name);
     fs::create_dir_all("/tmp/rad/tomls").unwrap();
-    println!("[rad] fetching toml from {} repository...", url);
+    // println!("[rad] fetching toml from {}...", url);
     let status = Command::new("wget")
         .args(["-q", "-O", &dest, &url])
         .status()
@@ -149,8 +149,8 @@ pub fn package_info(pkg_name: &str, processing: &mut HashSet<String>) {
         Ok(p)  => p,
         Err(e) => { eprintln!("[rad] {} {}", "parse error:".red(), e); processing.remove(pkg_name); return; }
     };
-    println!("[rad] Info about {}:\n  \
+    println!("[rad] Info about {}{}:\n  \
     {}, \n  \
     Source of the package: {}, \n  \
-    Version of the package: {}", pkg.name.yellow(), pkg.description, pkg.source, pkg.version);
+    Version of the package: {}", pkg_name.yellow(),  if Path::new(&format!("{}.toml", pkg_name)).exists() { " (local)" } else { "" }, pkg.description, pkg.source, pkg.version);
 }
