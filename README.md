@@ -1,7 +1,7 @@
 ![Logo](https://raw.githubusercontent.com/dejuri/rad/main/logo.png)
 # rad
 
-rad is a source-based package manager for Radrix GNU/Linux or other GNU/Linux distros, usually LFS.
+rad — a lightweight source-based package manager for Radrix GNU/Linux and other LFS-built GNU/Linux systems. Manages system packages built from source using TOML package headers
 
 rad is an abbreviation for Rathrix Automated TOML-packages Header
 
@@ -15,7 +15,7 @@ It stays for managing system packages, user ones is better to manage with [nix](
 ![Showcase](https://raw.githubusercontent.com/dejuri/rad/refs/heads/main/preview.gif)
 ## Installation
 
-To install it, firstly clone the repository
+At the first clone rad with git
 
 ```sh
 git clone https://github.com/dejuri/rad.git Rad
@@ -26,7 +26,7 @@ Then change directory to just cloned project
 cd Rad
 ```
 
-Build it with cargo (you might want to firstly execute cargo update)
+Build it with cargo (you might want to firstly execute `cargo update`)
 
 ```sh
 cargo build --release
@@ -54,6 +54,53 @@ rad -i rad
 ```
 
 
-## Some useful info
+## To get help of the usage
 
 You might execute `rad -h` firstly, to see available arguments and how to use rad properly.
+## Usage/Examples
+Ok, you need now to understand how to describe own package. You can look for the examples in [repository](https://github.com/dejuri/radpkg), or look at this example of hello package
+```toml
+[package]
+name = "hello"
+version = "2.12.1"
+description = "GNU Hello - the classic greeting program"
+source = "https://ftp.gnu.org/gnu/hello/hello-2.12.1.tar.gz"
+
+[build]
+system = "autotools"
+multilib_support = false
+depends = ""
+configure_args = ""
+```
+
+Understand? And now if you created own packages repository, you can use them already without publishing somewhere and creating repository. Because you can install local packages, just change directory to where your packages are, and do 
+```sh
+rad -P <pkg>
+```
+this will give you info for your package, if you see this package and rad give information about local package, you can use it. Try to install it (as root)
+```sh
+rad -i <pkg>
+```
+That's all, if no errors, you've installed your package. Now rad remember the installed files of package by the register, you can view
+```sh
+cat /var/lib/rad/installed/<pkg>
+```
+you will get the list of installed files. It also supports symlinks, don't worry about it.
+
+Now, if needed, remove the package (as root)
+```sh
+rad -r <pkg>
+```
+## Issues
+If you have an issue or some different bugs, create a [new issue](https://github.com/dejuri/radpkg/issues/new) please and describe what happened and i will see it
+## What now?
+You better know why you've installed it. Remember, the code is open, i think you have rights to know what are you installing, yes?
+
+Ok, so what now, you can create your repository of packages, install it, and rad will control it, it is good. This is the stability.
+
+You can just make a system build with rad, a Radrix, and i have a project and done some progress. Good luck, comrade, do what you find needed
+## License
+
+[GPL 3.0](https://choosealicense.com/licenses/gpl-3.0/)
+
+
