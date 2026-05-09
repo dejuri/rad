@@ -1,7 +1,7 @@
 ![Logo](https://raw.githubusercontent.com/dejuri/rad/main/logo.png)
 # rad
 
-rad — a lightweight source-based package manager for Radrix GNU/Linux and other LFS-built GNU/Linux systems. Manages system packages built from source using TOML package headers
+rad — a lightweight source-based package manager for Radrix GNU/Linux and other LFS-built GNU/Linux systems. Manages system packages built from source using TOML package headers, ok?
 
 rad is an abbreviation for Rathrix Automated TOML-packages Header
 
