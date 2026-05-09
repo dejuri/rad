@@ -98,7 +98,7 @@ You better know why you've installed it. Remember, the code is open, i think you
 
 Ok, so what now, you can create your repository of packages, install it, and rad will control it, it is good. This is the stability.
 
-You can just make a system build with rad, a Radrix, and i have a project and done some progress. Good luck, comrade, do what you find needed
+You can just make a system built with rad, a Radrix, and i have a project and done some progress. Good luck, comrade, do what you find needed
 ## License
 
 [GPL 3.0](https://choosealicense.com/licenses/gpl-3.0/)
