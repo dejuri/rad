@@ -58,7 +58,7 @@ rad -i rad
 
 You might execute `rad -h` firstly, to see available arguments and how to use rad properly.
 ## Usage/Examples
-Ok, you need now to understand how to describe own package. You can look for the examples in [repository](https://github.com/dejuri/radpkg), or look at this example of hello package
+Ok, you need now to understand how to describe own package. You can look for the examples in [repository](https://github.com/dejuri/radpkg), or look at this example of hello package, remember, they must be at .toml format, or rad won't find them
 ```toml
 [package]
 name = "hello"
