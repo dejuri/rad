@@ -1,17 +1,21 @@
-use std::process::Command;
-use std::fs;
-use std::path::Path;
-use std::collections::HashSet;
-use colored::Colorize;
-use std::io::Write;
 use crate::config::load_config;
-use crate::package::{Package, BuildSystem, parse_package, fetch_package};
+use crate::package::{BuildSystem, Package, fetch_package, parse_package};
+use colored::Colorize;
+use std::collections::HashSet;
+use std::fs;
+use std::io::Write;
 use std::os::unix::fs as unix_fs;
+use std::path::Path;
+use std::process::Command;
 
 pub fn install_package(pkg_name: &str, prefix: &str, processing: &mut HashSet<String>) {
     let config = load_config();
     if processing.contains(pkg_name) {
-        eprintln!("[rad] {} circular dependency detected: {}!", "error:".red(), pkg_name);
+        eprintln!(
+            "[rad] {} circular dependency detected: {}!",
+            "error:".red(),
+            pkg_name
+        );
         return;
     }
     if is_installed(pkg_name) {
@@ -20,13 +24,21 @@ pub fn install_package(pkg_name: &str, prefix: &str, processing: &mut HashSet<St
     }
     processing.insert(pkg_name.to_string());
     let rad_path = match fetch_package(pkg_name) {
-        Ok(p)  => p,
-        Err(e) => { eprintln!("[rad] {} {}", "error:".red(), e); processing.remove(pkg_name); return; }
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("[rad] {} {}", "error:".red(), e);
+            processing.remove(pkg_name);
+            return;
+        }
     };
 
     let pkg = match parse_package(&rad_path) {
-        Ok(p)  => p,
-        Err(e) => { eprintln!("[rad] {} {}", "parse error:".red(), e); processing.remove(pkg_name); return; }
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("[rad] {} {}", "parse error:".red(), e);
+            processing.remove(pkg_name);
+            return;
+        }
     };
     for dep in &pkg.depends {
         if !is_installed(dep) {
@@ -38,8 +50,12 @@ pub fn install_package(pkg_name: &str, prefix: &str, processing: &mut HashSet<St
     println!("[rad] info: {}", pkg.description);
     println!("[rad] source: {}", pkg.source);
     let src_dir = match download_and_extract(&pkg) {
-        Ok(d)  => d,
-        Err(e) => { eprintln!("[rad] {} {}", "error:".red(), e); processing.remove(pkg_name); return; }
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("[rad] {} {}", "error:".red(), e);
+            processing.remove(pkg_name);
+            return;
+        }
     };
 
     // 64 bit build
@@ -81,13 +97,15 @@ pub fn install_package(pkg_name: &str, prefix: &str, processing: &mut HashSet<St
     let _ = fs::remove_dir_all(&build_dir);
 
     processing.remove(pkg_name);
-    println!("[rad] installation of '{}' finished successfully.", pkg_name);
+    println!(
+        "[rad] installation of '{}' finished successfully.",
+        pkg_name
+    );
 }
 
 pub fn download_and_extract(pkg: &Package) -> Result<String, String> {
     let work_dir = format!("/tmp/rad/build/{}", pkg.name);
-    fs::create_dir_all(&work_dir)
-        .map_err(|e| format!("cannot create build dir: {}", e))?;
+    fs::create_dir_all(&work_dir).map_err(|e| format!("cannot create build dir: {}", e))?;
 
     if pkg.source.ends_with(".git")
         || (pkg.source.contains("github.com") && !pkg.source.contains(".tar"))
@@ -97,11 +115,13 @@ pub fn download_and_extract(pkg: &Package) -> Result<String, String> {
             .args(["clone", "--recursive", &pkg.source, &work_dir])
             .status()
             .map_err(|e| format!("git clone failed: {}", e))?;
-        if !status.success() { return Err("git clone failed".to_string()); }
+        if !status.success() {
+            return Err("git clone failed".to_string());
+        }
         return Ok(work_dir);
     }
 
-    let archive_name = pkg.source.split('/').last().unwrap_or("source.tar.gz");
+    let archive_name = pkg.source.split('/').next_back().unwrap_or("source.tar.gz");
     let archive_path = format!("{}/{}", work_dir, archive_name);
 
     println!("[rad] downloading {}...", pkg.source);
@@ -109,22 +129,36 @@ pub fn download_and_extract(pkg: &Package) -> Result<String, String> {
         .args(["-c", &pkg.source, "-O", &archive_path])
         .status()
         .map_err(|e| format!("download failed: {}", e))?;
-    if !status.success() { return Err("download failed".to_string()); }
+    if !status.success() {
+        return Err("download failed".to_string());
+    }
 
     println!("[rad] extracting {}...", archive_name);
     let extract_status = if archive_path.ends_with(".zip") {
-        Command::new("unzip").args([&archive_path, "-d", &work_dir]).status()
+        Command::new("unzip")
+            .args([&archive_path, "-d", &work_dir])
+            .status()
     } else {
-        Command::new("tar").args(["-xf", &archive_path, "-C", &work_dir]).status()
-    }.map_err(|e| format!("extraction failed: {}", e))?;
-    if !extract_status.success() { return Err("extraction failed".to_string()); }
+        Command::new("tar")
+            .args(["-xf", &archive_path, "-C", &work_dir])
+            .status()
+    }
+    .map_err(|e| format!("extraction failed: {}", e))?;
+    if !extract_status.success() {
+        return Err("extraction failed".to_string());
+    }
 
     let versioned = format!("{}/{}-{}", work_dir, pkg.name, pkg.version);
-    let plain     = format!("{}/{}", work_dir, pkg.name);
-    if Path::new(&versioned).exists() { return Ok(versioned); }
-    if Path::new(&plain).exists()     { return Ok(plain); }
+    let plain = format!("{}/{}", work_dir, pkg.name);
+    if Path::new(&versioned).exists() {
+        return Ok(versioned);
+    }
+    if Path::new(&plain).exists() {
+        return Ok(plain);
+    }
 
-    fs::read_dir(&work_dir).map_err(|e| e.to_string())?
+    fs::read_dir(&work_dir)
+        .map_err(|e| e.to_string())?
         .flatten()
         .find(|e| e.path().is_dir())
         .map(|e| e.path().to_string_lossy().to_string())
@@ -158,25 +192,38 @@ pub fn build_and_install(
             println!("[rad] build system: autotools");
             let mut cmd = Command::new("./configure");
             cmd.arg(format!("--prefix={}", prefix))
-               .arg(format!("--libdir={}", current_libdir))
-               .current_dir(src_dir);
-            for arg in &current_configure_args { cmd.arg(arg); }
+                .arg(format!("--libdir={}", current_libdir))
+                .current_dir(src_dir);
+            for arg in &current_configure_args {
+                cmd.arg(arg);
+            }
             run_cmd(cmd, "configure")?;
             run_cmd(make_cmd(src_dir, &["-j4"]), "make")?;
-            run_cmd(make_cmd(src_dir, &[&format!("DESTDIR={}", dest_dir), "install"]), "make install")?;
+            run_cmd(
+                make_cmd(src_dir, &[&format!("DESTDIR={}", dest_dir), "install"]),
+                "make install",
+            )?;
         }
 
         BuildSystem::Make => {
             println!("[rad] build system: make");
             let mut args: Vec<String> = vec!["-j4".into()];
-            for arg in &current_configure_args { args.push(arg.clone()); }
+            for arg in &current_configure_args {
+                args.push(arg.clone());
+            }
             let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
             run_cmd(make_cmd(src_dir, &args_ref), "make")?;
-            run_cmd(make_cmd(src_dir, &[
-                &format!("DESTDIR={}", dest_dir),
-                &format!("PREFIX={}", prefix),
-                "install",
-            ]), "make install")?;
+            run_cmd(
+                make_cmd(
+                    src_dir,
+                    &[
+                        &format!("DESTDIR={}", dest_dir),
+                        &format!("PREFIX={}", prefix),
+                        "install",
+                    ],
+                ),
+                "make install",
+            )?;
         }
 
         BuildSystem::Cmake => {
@@ -185,15 +232,18 @@ pub fn build_and_install(
             let _ = fs::remove_dir_all(&build_dir);
             fs::create_dir_all(&build_dir).unwrap();
             let mut cmd = Command::new("cmake");
-            cmd.arg("..").arg("-GNinja")
-               .arg(format!("-DCMAKE_INSTALL_PREFIX={}", prefix))
-               .arg(format!("-DCMAKE_INSTALL_LIBDIR={}", current_libdir))
-               .current_dir(&build_dir);
+            cmd.arg("..")
+                .arg("-GNinja")
+                .arg(format!("-DCMAKE_INSTALL_PREFIX={}", prefix))
+                .arg(format!("-DCMAKE_INSTALL_LIBDIR={}", current_libdir))
+                .current_dir(&build_dir);
             if is_m32 {
                 cmd.arg("-DCMAKE_C_FLAGS=-m32");
                 cmd.arg("-DCMAKE_CXX_FLAGS=-m32");
             }
-            for arg in &current_configure_args { cmd.arg(arg); }
+            for arg in &current_configure_args {
+                cmd.arg(arg);
+            }
             run_cmd(cmd, "cmake")?;
             run_cmd(ninja_cmd(&build_dir, &[]), "ninja")?;
             run_cmd(ninja_install_cmd(&build_dir, dest_dir), "ninja install")?;
@@ -203,11 +253,14 @@ pub fn build_and_install(
             println!("[rad] build system: meson + ninja");
             let build_dir = format!("{}/build", src_dir);
             let mut cmd = Command::new("meson");
-            cmd.arg("setup").arg(&build_dir)
-               .arg(format!("--prefix={}", prefix))
-               .arg(format!("--libdir={}", current_libdir))
-               .current_dir(src_dir);
-            for arg in &current_configure_args { cmd.arg(arg); }
+            cmd.arg("setup")
+                .arg(&build_dir)
+                .arg(format!("--prefix={}", prefix))
+                .arg(format!("--libdir={}", current_libdir))
+                .current_dir(src_dir);
+            for arg in &current_configure_args {
+                cmd.arg(arg);
+            }
             run_cmd(cmd, "meson setup")?;
             run_cmd(ninja_cmd(&build_dir, &[]), "ninja")?;
             run_cmd(ninja_install_cmd(&build_dir, dest_dir), "ninja install")?;
@@ -229,16 +282,25 @@ pub fn build_and_install(
             println!("[rad] build system: python (pip)");
             let mut cmd = Command::new("pip");
             cmd.args(["install", "--prefix", prefix, "--root", dest_dir, "."])
-               .current_dir(src_dir);
+                .current_dir(src_dir);
             run_cmd(cmd, "pip install")?;
         }
 
-        BuildSystem::Manual { build_commands, install_command } => {
+        BuildSystem::Manual {
+            build_commands,
+            install_command,
+        } => {
             println!("[rad] build system: manual");
             for (i, cmd_str) in build_commands.iter().enumerate() {
-                println!("[rad] build step {}/{}: {}", i + 1, build_commands.len(), cmd_str);
+                println!(
+                    "[rad] build step {}/{}: {}",
+                    i + 1,
+                    build_commands.len(),
+                    cmd_str
+                );
                 let status = Command::new("sh")
-                    .arg("-c").arg(cmd_str)
+                    .arg("-c")
+                    .arg(cmd_str)
                     .current_dir(src_dir)
                     .env("PREFIX", prefix)
                     .env("LIBDIR", &current_libdir)
@@ -251,7 +313,8 @@ pub fn build_and_install(
             }
             println!("[rad] install step: {}", install_command);
             let status = Command::new("sh")
-                .arg("-c").arg(install_command)
+                .arg("-c")
+                .arg(install_command)
                 .current_dir(src_dir)
                 .env("DESTDIR", dest_dir)
                 .env("PREFIX", prefix)
@@ -271,7 +334,8 @@ pub fn build_and_install(
 
 pub fn run_cmd(mut cmd: Command, label: &str) -> Result<(), String> {
     println!("[rad] running: {}...", label);
-    let status = cmd.status()
+    let status = cmd
+        .status()
         .map_err(|e| format!("{} failed to start: {}", label, e))?;
     if !status.success() {
         return Err(format!("{} exited with status: {}", label, status));
@@ -281,21 +345,27 @@ pub fn run_cmd(mut cmd: Command, label: &str) -> Result<(), String> {
 
 pub fn make_cmd(dir: &str, args: &[&str]) -> Command {
     let mut c = Command::new("make");
-    for a in args { c.arg(a); }
+    for a in args {
+        c.arg(a);
+    }
     c.current_dir(dir);
     c
 }
 
 pub fn ninja_cmd(dir: &str, args: &[&str]) -> Command {
     let mut c = Command::new("ninja");
-    for a in args { c.arg(a); }
+    for a in args {
+        c.arg(a);
+    }
     c.current_dir(dir);
     c
 }
 
 pub fn ninja_install_cmd(build_dir: &str, dest_dir: &str) -> Command {
     let mut c = Command::new("ninja");
-    c.arg("install").env("DESTDIR", dest_dir).current_dir(build_dir);
+    c.arg("install")
+        .env("DESTDIR", dest_dir)
+        .current_dir(build_dir);
     c
 }
 
@@ -310,7 +380,7 @@ pub fn register_package_files(pkg_name: &str, dest_dir: &str) -> std::io::Result
 pub fn collect_files(root: &Path, current: &Path, manifest: &mut fs::File) -> std::io::Result<()> {
     for entry in fs::read_dir(current)? {
         let entry = entry?;
-        let path  = entry.path();
+        let path = entry.path();
         if path.is_dir() {
             collect_files(root, &path, manifest)?;
         } else {
@@ -324,8 +394,7 @@ pub fn collect_files(root: &Path, current: &Path, manifest: &mut fs::File) -> st
 pub fn merge_to_system(dest_dir: &str) -> Result<(), String> {
     println!("[rad] merging files to system...");
     let dest_path = Path::new(dest_dir);
-    merge_dir(dest_path, dest_path, Path::new("/"))
-        .map_err(|e| format!("merge failed: {}", e))?;
+    merge_dir(dest_path, dest_path, Path::new("/")).map_err(|e| format!("merge failed: {}", e))?;
     println!("[rad] merge done.");
     Ok(())
 }
@@ -360,7 +429,7 @@ pub fn atomic_install(src: &Path, dest: &Path) -> std::io::Result<()> {
         }
         unix_fs::symlink(target, dest)?;
     } else {
-        let tmp = dest.with_extension(format!("rad_new"));
+        let tmp = dest.with_extension("rad_new");
         fs::copy(src, &tmp)?;
         let _ = fs::set_permissions(&tmp, meta.permissions());
         fs::rename(&tmp, dest)?;

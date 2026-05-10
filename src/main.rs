@@ -1,11 +1,11 @@
-use std::env;
-use std::fs;
 use colored::Colorize;
-use rad::install::*;
 use rad::config::*;
+use rad::install::*;
 use rad::package::*;
 use rad::remove::*;
 use std::collections::HashSet;
+use std::env;
+use std::fs;
 
 // Main
 fn main() {
@@ -14,7 +14,10 @@ fn main() {
     let version = option_env!("CARGO_PKG_VERSION").unwrap_or("unknown");
     let prefix = "/usr";
     if args.len() < 2 {
-        eprintln!("[rad] {} please specify a valid argument, use -h or --help", "error:".red());
+        eprintln!(
+            "[rad] {} please specify a valid argument, use -h or --help",
+            "error:".red()
+        );
         return;
     }
 
@@ -35,18 +38,30 @@ fn main() {
                     1. Locally:   ./<pkg>.toml\n    \
                     2. Remote:    {}/<pkg>.toml",
                 "Radrix Automated TOML-packages Handler".bold(),
-                version.yellow(), config.repo.url
+                version.yellow(),
+                config.repo.url
             );
         }
         "-I" | "--info" => {
-            let multilib_status = if config.arch.multilib { "yes".green() } else { "no".red() };
-            println!("[rad] info:\n  \
+            let multilib_status = if config.arch.multilib {
+                "yes".green()
+            } else {
+                "no".red()
+            };
+            println!(
+                "[rad] info:\n  \
             ARCH\n    \
             - multilib: {}\n  \
             REPO\n    \
-            - url: {}", multilib_status, config.repo.url);
+            - url: {}",
+                multilib_status, config.repo.url
+            );
         }
-        "-V" | "--version" => println!("rad - {}\n  version: {}", "Radrix Automated TOML-packages Handler".bold(), version.yellow()),
+        "-V" | "--version" => println!(
+            "rad - {}\n  version: {}",
+            "Radrix Automated TOML-packages Handler".bold(),
+            version.yellow()
+        ),
 
         "-i" | "--install" => {
             let mut processing = HashSet::new();
@@ -56,16 +71,14 @@ fn main() {
             }
         }
 
-        "-r" | "--remove" => {
-            match args.get(2) {
-                Some(name) => {
-                    if let Err(e) = remove_package(name) {
-                        eprintln!("[rad] {} {}", "removal error:".red(), e);
-                    }
+        "-r" | "--remove" => match args.get(2) {
+            Some(name) => {
+                if let Err(e) = remove_package(name) {
+                    eprintln!("[rad] {} {}", "removal error:".red(), e);
                 }
-                None => eprintln!("[rad] {} specify the package name", "error:".red()),
             }
-        }
+            None => eprintln!("[rad] {} specify the package name", "error:".red()),
+        },
 
         "-L" | "--list" => {
             let db_path = "/var/lib/rad/installed";
@@ -95,6 +108,10 @@ fn main() {
 
         "--hello" => println!("Hello World, btw microslop sucks"),
 
-        other => eprintln!("[rad] {} unknown argument '{}', try -h or --help", "error:".red(), other),
+        other => eprintln!(
+            "[rad] {} unknown argument '{}', try -h or --help",
+            "error:".red(),
+            other
+        ),
     }
 }

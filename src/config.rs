@@ -1,11 +1,11 @@
-use std::fs;
 use serde::Deserialize;
+use std::fs;
 
 #[derive(Deserialize)]
 pub struct Config {
     #[serde(default)]
     pub arch: ArchConfig,
-        #[serde(default)]
+    #[serde(default)]
     pub repo: RepoConfig,
 }
 
@@ -24,8 +24,14 @@ pub struct RepoConfig {
 pub fn load_config() -> Config {
     let path = "/etc/rad/config.toml";
     if let Ok(content) = fs::read_to_string(path) {
-        toml::from_str(&content).unwrap_or(Config { arch: ArchConfig::default(), repo: RepoConfig::default()  })
+        toml::from_str(&content).unwrap_or(Config {
+            arch: ArchConfig::default(),
+            repo: RepoConfig::default(),
+        })
     } else {
-        Config { arch: ArchConfig::default(), repo: RepoConfig::default() }
+        Config {
+            arch: ArchConfig::default(),
+            repo: RepoConfig::default(),
+        }
     }
 }
