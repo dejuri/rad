@@ -15,7 +15,7 @@ fn is_there(name: &str) -> Result<(), String> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
-        .map_err(|_| format!("{}", "idk without witch".blue()))?;
+        .map_err(|_| format!("{}", "idk without which".blue()))?;
 
     if status.success() {
         Ok(())
