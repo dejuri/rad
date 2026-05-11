@@ -13,7 +13,23 @@ It stays for managing system packages, user ones is better to manage with [nix](
 ## Installing GNU hello with rad
 
 ![Showcase](https://raw.githubusercontent.com/dejuri/rad/refs/heads/main/preview.gif)
+
+## Dependencies
+If you do use LFS, you maybe have got most of those dependencies, but be sure you've got everything, otherwise you'll get an error one day.
+* cargo (building rad and runtime)
+* make (runtime)
+* cmake (runtime)
+* meson (runtime)
+* ninja (runtime)
+* pip (runtime)
+* tar (runtime for unpacking tarballs)
+* unzip (runtime for non-tar archives)
+* git (runtime)
+* sh (runtime, can be symlink on other POSIX shell)
+* wget (runtime)
+
 ## Installation
+Make sure you have installed runtime dependencies
 
 At the first clone rad with git
 
