@@ -27,7 +27,7 @@ If you do use LFS, you maybe have got most of those dependencies, but be sure yo
 * git (runtime)
 * sh (runtime, can be symlink on other POSIX shell)
 * wget (runtime)
-
+* which (runtime, for rad could in checking own dependencies in --info)
 ## Installation
 Make sure you have installed runtime dependencies
 

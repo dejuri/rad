@@ -4,8 +4,25 @@ use rad::install::*;
 use rad::package::*;
 use rad::remove::*;
 use std::collections::HashSet;
+use std::process::{Command, Stdio};
 use std::env;
 use std::fs;
+
+// Check for deps
+fn is_there(name: &str) -> Result<(), String> {
+    let status = Command::new("which")
+        .arg(name)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_err(|_| format!("{}", "idk without witch".blue()))?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("not found"))
+    }
+}
 
 // Main
 fn main() {
@@ -13,6 +30,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let version = option_env!("CARGO_PKG_VERSION").unwrap_or("unknown");
     let prefix = "/usr";
+    let deps = vec!["cargo", "make", "cmake", "meson", "ninja", "pip", "tar", "unzip", "git", "wget", "sh"];
     if args.len() < 2 {
         eprintln!(
             "[rad] {} please specify a valid argument, use -h or --help",
@@ -48,12 +66,40 @@ fn main() {
             } else {
                 "no".red()
             };
-            println!(
-                "[rad] info:\n  \
-            ARCH\n    \
-            - multilib: {}\n  \
-            REPO\n    \
-            - url: {}",
+
+            // Start of info
+            println!("[rad] info:\n\
+            DEPENDENCIES");
+
+            // Check for which
+            let status = Command::new("which")
+                .arg("which")
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+            match status {
+                Ok(s) if s.success() => {
+                    println!("  - which -- {}", "found".green());
+                }
+                _ => {
+                    println!("  - which -- {}", "not found".red());
+                }
+            }   
+
+            // Dependencies
+            for i in deps {
+                match is_there(i) {
+                    Ok(_) => println!("  - {} -- {}", i, "found".green()),
+                    Err(e) => eprintln!("  - {} -- {}", i, e.red()),
+                }
+            }
+
+            // Config
+            println!("CONFIG\n  \
+                    ARCH\n    \
+                        - multilib: {}\n  \
+                    REPO\n    \
+                        - url: {}",
                 multilib_status, config.repo.url
             );
         }
