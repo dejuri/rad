@@ -61,7 +61,13 @@ mkdir /etc/rad -p
 cp ./examples/config.toml /etc/rad/
 ```
 
-Now you have rad installed!
+Rad is installed now. Check if all of runtime dependencies are seen by rad (look at DEPENDENCIES section)
+
+```sh
+rad -I
+```
+
+That's all!
 
 ### P.S. If you want you can install rad from rad itself now
 
