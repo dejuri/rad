@@ -3,7 +3,7 @@
 
 rad — a lightweight source-based package manager for Radrix GNU/Linux and other LFS-built GNU/Linux systems. Manages system packages built from source using TOML package headers, ok?
 
-rad is an abbreviation for Rathrix Automated TOML-packages Header
+rad is an abbreviation for Radrix Automated TOML-packages Handler
 
 but when it combines with Slavic God Radogost, who is the God of trade and seafaring,
 even easier to call it just rad.
