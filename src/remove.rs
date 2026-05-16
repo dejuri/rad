@@ -1,10 +1,11 @@
 use std::fs;
 use std::path::Path;
+use colored::Colorize;
 
 pub fn remove_package(pkg_name: &str) -> std::io::Result<()> {
     let manifest_path = format!("/var/lib/rad/installed/{}", pkg_name);
     if !Path::new(&manifest_path).exists() {
-        println!("[rad] {} is not installed.", pkg_name);
+        println!("[rad] {} {} is not installed.", "error:".red(), pkg_name);
         return Ok(());
     }
     println!("[rad] removing package: {}", pkg_name);

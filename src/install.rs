@@ -59,7 +59,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, processing: &mut HashSet<St
     };
 
     // 64 bit build
-    let dest_dir = format!("/tmp/rad/image/{}", pkg_name);
+    let dest_dir = format!("/tmp/rad/image/{}", pkg.name);
     let _ = fs::remove_dir_all(&dest_dir);
     fs::create_dir_all(&dest_dir).unwrap();
 
@@ -80,8 +80,8 @@ pub fn install_package(pkg_name: &str, prefix: &str, processing: &mut HashSet<St
     }
 
     // Now go register
-    println!("[rad] indexing files for {}...", pkg_name);
-    if let Err(e) = register_package_files(pkg_name, &dest_dir) {
+    println!("[rad] indexing files for {}...", pkg.name);
+    if let Err(e) = register_package_files(&pkg.name, &dest_dir) {
         eprintln!("[rad] registration error: {}", e);
     }
 
@@ -99,7 +99,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, processing: &mut HashSet<St
     processing.remove(pkg_name);
     println!(
         "[rad] installation of '{}' finished successfully.",
-        pkg_name
+        pkg.name
     );
 }
 

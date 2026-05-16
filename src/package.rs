@@ -175,7 +175,7 @@ pub fn package_info(pkg_name: &str, processing: &mut HashSet<String>) {
     {}, \n  \
     Source of the package: {}, \n  \
     Version of the package: {}",
-        pkg_name.yellow(),
+        pkg.name.yellow(),
         if Path::new(&format!("{}.toml", pkg_name)).exists() {
             " (local)"
         } else {
