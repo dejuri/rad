@@ -1,33 +1,177 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>rad — lightweight source-based package manager for LFS</title>
   <meta name="description" content="rad — a lightweight source-based package manager for Radrix GNU/Linux and other LFS-built GNU/Linux systems." />
   <link rel="icon" href="https://raw.githubusercontent.com/dejuri/rad/main/logo.png" />
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
   <style>
-    :root{
-      --bg:#312206; --card:#817246; --muted:#e6eeaa; --accent:#fff0b0; --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Segoe UI Mono", monospace;
-      color-scheme: dark;
+    :root {
+      --bg: #211604;
+      --bg-gradient: #3a2a0c;
+      --card: #2d2007;
+      --muted: #d0d79b;
+      --accent: #fcd860;
+      --text: #f4edd4;
+      --code-bg: #170f03;
+      --border: rgba(252, 216, 96, 0.15);
+      --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
     }
-    html,body{height:100%; margin:0; font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:linear-gradient(180deg,var(--bg),#615236); color:#e6eef6;}
-    .container{max-width:980px;margin:36px auto;padding:28px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));border-radius:12px;box-shadow:0 6px 30px rgba(2,6,23,0.7);}
-    header{display:flex;gap:16px;align-items:center;}
-    .logo{width:64px;height:64px;border-radius:10px;overflow:hidden;flex:0 0 64px;background:#000;display:flex;align-items:center;justify-content:center;}
-    .logo img{width:100%;height:100%;object-fit:contain;background:#615236;}
-    h1{margin:0;font-size:26px;}
-    .lead{color:var(--muted);margin-top:6px;}
-    .content{margin-top:20px;}
-    img.showcase{max-width:100%;border-radius:8px;border:1px solid rgba(255,255,255,0.03);display:block;margin:12px 0;}
-    pre{background:#615236;padding:12px;border-radius:8px;overflow:auto;color:#cfe9ff;}
-    code{font-family:var(--mono);font-size:13px;color:#dbeafe;}
-    ul{color:var(--muted)}
-    a{color:var(--accent)}
-    .section{margin-top:20px;}
-    .btn{display:inline-block;padding:8px 12px;border-radius:8px;background:var(--accent);color:white;text-decoration:none;font-weight:600}
-    footer{margin-top:26px;color:var(--muted);font-size:13px}
-    @media(max-width:640px){ .logo{width:52px;height:52px;flex:0 0 52px} }
+    
+    color-scheme: dark;
+
+    * { box-sizing: border-box; }
+
+    html, body { 
+      margin: 0; 
+      padding: 0;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg-gradient) 100%); 
+      background-attachment: fixed;
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.6;
+    }
+
+    .container { 
+      max-width: 820px; 
+      margin: 40px auto; 
+      padding: 40px; 
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px; 
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    header { 
+      display: flex; 
+      gap: 24px; 
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 28px;
+    }
+
+    .logo { 
+      width: 72px; 
+      height: 72px; 
+      border-radius: 12px; 
+      overflow: hidden; 
+      flex: 0 0 72px; 
+      background: #000; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .logo img { 
+      width: 100%; 
+      height: 100%; 
+      object-fit: contain; 
+    }
+
+    h1 { 
+      margin: 0; 
+      font-size: 32px; 
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+
+    h2 {
+      font-size: 22px;
+      color: var(--accent);
+      margin-top: 32px;
+      margin-bottom: 12px;
+      border-left: 3px solid var(--accent);
+      padding-left: 12px;
+    }
+
+    .lead { 
+      color: var(--muted); 
+      margin-top: 8px;
+      font-size: 15px;
+      max-width: 600px;
+    }
+
+    .content { margin-top: 12px; }
+
+    p { margin: 12px 0 16px 0; font-size: 16px; color: #ece6d5; }
+
+    img.showcase { 
+      width: 100%; 
+      max-width: 100%; 
+      border-radius: 8px; 
+      border: 1px solid var(--border);
+      display: block; 
+      margin: 20px 0; 
+    }
+
+    pre { 
+      background: var(--code-bg); 
+      padding: 16px; 
+      border-radius: 10px; 
+      overflow-x: auto; 
+      border: 1px solid rgba(255,255,255,0.05);
+      margin: 16px 0;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+    }
+
+    code { 
+      font-family: var(--mono); 
+      font-size: 14px; 
+      color: #f7ebd0; 
+    }
+
+    p code, li code {
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    ul { 
+      color: var(--text); 
+      padding-left: 20px;
+      margin: 16px 0;
+    }
+    
+    li { margin-bottom: 8px; }
+    li strong { color: var(--accent); }
+
+    a { 
+      color: var(--accent); 
+      text-decoration: none;
+      border-bottom: 1px dotted var(--accent);
+      transition: color 0.2s, border-color 0.2s;
+    }
+    
+    a:hover {
+      color: #fff;
+      border-bottom-style: solid;
+    }
+
+    .section { margin-top: 0; }
+
+    footer { 
+      margin-top: 40px; 
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      color: var(--muted); 
+      font-size: 14px;
+    }
+
+    @media (max-width: 640px) { 
+      .container { margin: 12px; padding: 20px; border-radius: 12px; }
+      header { flex-direction: column; align-items: flex-start; gap: 16px; }
+      .logo { width: 64px; height: 64px; flex: 0 0 64px; }
+      h1 { font-size: 28px; }
+    }
   </style>
 </head>
 <body>
@@ -38,7 +182,7 @@
       </div>
       <div>
         <h1>rad</h1>
-        <div class="lead">rad — a lightweight source-based package manager for Radrix GNU/Linux and other LFS-built GNU/Linux systems. Manages system packages built from source using TOML package headers, ok?</div>
+        <div class="lead">A lightweight source-based package manager for Radrix GNU/Linux and other LFS-built GNU/Linux systems. Manages system packages built from source using TOML package headers.</div>
       </div>
     </header>
 
@@ -46,37 +190,37 @@
       <section class="section">
         <p><strong>rad</strong> is an abbreviation for <em>Rathrix Automated TOML-packages Header</em>.</p>
         <p>But when it combines with Slavic God Radogost, who is the God of trade and seafaring, it's even easier to call it just <strong>rad</strong>.</p>
-        <p>It stays for managing system packages; user ones are better managed with <a href="https://github.com/NixOS/nix" target="_blank" rel="noopener">nix</a> or other tools.</p>
+        <p>It stays for managing system packages; user ones are better managed with <a href="https://github.com/NixOS/nix" target="_blank" rel="noopener">Nix</a> or other tools.</p>
       </section>
 
       <section class="section">
         <h2>Installing GNU hello with rad</h2>
-        <img class="showcase" src="https://raw.githubusercontent.com/dejuri/rad/refs/heads/main/preview.gif" alt="Showcase">
+        <img class="showcase" src="https://raw.githubusercontent.com/dejuri/rad/main/preview.gif" alt="Showcase">
       </section>
 
       <section class="section">
         <h2>Dependencies</h2>
-        <p>If you do use LFS, you maybe have got most of those dependencies, but be sure you've got everything, otherwise you'll get an error one day.</p>
+        <p>If you use LFS, you probably have most of these dependencies installed, but make sure you have everything to avoid future errors.</p>
         <ul>
-          <li>cargo (building rad and runtime)</li>
-          <li>make (runtime)</li>
-          <li>cmake (runtime)</li>
-          <li>meson (runtime)</li>
-          <li>ninja (runtime)</li>
-          <li>pip (runtime)</li>
-          <li>tar (runtime for unpacking tarballs)</li>
-          <li>unzip (runtime for non-tar archives)</li>
-          <li>git (runtime)</li>
-          <li>sh (runtime, can be symlink on other POSIX shell)</li>
-          <li>wget (runtime)</li>
-          <li>which (runtime, for rad could in checking own dependencies in --info)</li>
+          <li><strong>cargo</strong> (building rad and runtime)</li>
+          <li><strong>make</strong> (runtime)</li>
+          <li><strong>cmake</strong> (runtime)</li>
+          <li><strong>meson</strong> (runtime)</li>
+          <li><strong>ninja</strong> (runtime)</li>
+          <li><strong>pip</strong> (runtime)</li>
+          <li><strong>tar</strong> (runtime for unpacking tarballs)</li>
+          <li><strong>unzip</strong> (runtime for non-tar archives)</li>
+          <li><strong>git</strong> (runtime)</li>
+          <li><strong>sh</strong> (runtime, can be a symlink to any POSIX shell)</li>
+          <li><strong>wget</strong> (runtime)</li>
+          <li><strong>which</strong> (runtime, used by rad to check its own dependencies via <code>--info</code>)</li>
         </ul>
       </section>
 
       <section class="section">
         <h2>Installation</h2>
-        <p>Make sure you have installed runtime dependencies.</p>
-        <p>At the first clone rad with git:</p>
+        <p>Make sure you have installed all runtime dependencies first.</p>
+        <p>Clone rad with git and build it:</p>
         <pre><code>git clone https://github.com/dejuri/rad.git Rad
 cd Rad
 cargo build --release
@@ -84,19 +228,18 @@ sudo cp ./target/release/rad /usr/bin
 sudo mkdir -p /etc/rad
 sudo cp ./examples/config.toml /etc/rad/
 rad -I
-# optionally: rad -i rad
-</code></pre>
+# optionally: rad -i rad</code></pre>
         <p>That's all!</p>
       </section>
 
       <section class="section">
-        <h2>To get help of the usage</h2>
-        <p>You might execute <code>rad -h</code> firstly, to see available arguments and how to use rad properly.</p>
+        <h2>Usage & Help</h2>
+        <p>You can execute <code>rad -h</code> to see available arguments and learn how to use rad properly.</p>
       </section>
 
       <section class="section">
         <h2>Usage / Examples</h2>
-        <p>Ok, you need now to understand how to describe your own package. You can look for the examples in <a href="https://github.com/dejuri/radpkg" target="_blank" rel="noopener">repository</a>, or look at this example of hello package. Remember, they must be in .toml format, or rad won't find them.</p>
+        <p>To understand how to describe your own package, you can look for examples in the <a href="https://github.com/dejuri/radpkg" target="_blank" rel="noopener">packages repository</a>, or check this example of the <code>hello</code> package. Remember, they must be in <code>.toml</code> format, or rad won't find them.</p>
         <pre><code>[package]
 name = "hello"
 version = "2.12.1"
@@ -107,26 +250,24 @@ source = "https://ftp.gnu.org/gnu/hello/hello-2.12.1.tar.gz"
 system = "autotools"
 multilib_support = false
 depends = ""
-configure_args = ""
-</code></pre>
+configure_args = ""</code></pre>
 
-        <p>If you created your own packages repository, you can use them locally without publishing. Change directory to where your packages are, and run:</p>
+        <p>If you created your own package repository, you can use them locally without publishing. Change directory to where your packages are, and run:</p>
         <pre><code>rad -P &lt;pkg&gt;
 rad -i &lt;pkg&gt;   # install (as root)
 cat /var/lib/rad/installed/&lt;pkg&gt;
-rad -r &lt;pkg&gt;   # remove (as root)
-</code></pre>
+rad -r &lt;pkg&gt;   # remove (as root)</code></pre>
       </section>
 
       <section class="section">
         <h2>Issues</h2>
-        <p>If you have an issue or a bug, create a <a href="https://github.com/dejuri/radpkg/issues/new" target="_blank" rel="noopener">new issue</a> and describe what happened.</p>
+        <p>If you encounter an issue or a bug, please create a <a href="https://github.com/dejuri/radpkg/issues/new" target="_blank" rel="noopener">new issue</a> and describe what happened.</p>
       </section>
 
       <section class="section">
         <h2>What now?</h2>
-        <p>You better know why you've installed it. Remember, the code is open — you have rights to know what you are installing.</p>
-        <p>Create your repository of packages, install it, and rad will control it — stability. You can build a system with rad (a Radrix). Good luck, comrade.</p>
+        <p>You know best why you installed it. Remember, the code is open — you have the right to know what you are installing.</p>
+        <p>Create your repository of packages, install them, and rad will maintain system stability. You can build an entire system with rad (a Radrix). Good luck, comrade.</p>
       </section>
 
       <section class="section">
