@@ -1,8 +1,143 @@
-<h1>rad</h1>
-rad — a lightweight source-based package manager for Radrix GNU/Linux and other LFS-built GNU/Linux systems. Manages system packages built from source using TOML package headers, ok?
-rad is an abbreviation for Rathrix Automated TOML-packages Header
-but when it combines with Slavic God Radogost, who is the God of trade and seafaring, even easier to call it just rad.
-It stays for managing system packages
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>rad — Lightweight source-based package manager</title>
+  <meta name="description" content="rad — a lightweight source-based package manager for Radrix GNU/Linux and other LFS-built GNU/Linux systems." />
+  <link rel="icon" href="https://raw.githubusercontent.com/dejuri/rad/main/logo.png" />
+  <style>
+    :root{
+      --bg:#0f1724; --card:#071220; --muted:#9aa4b2; --accent:#7c5cff; --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Segoe UI Mono", monospace;
+      color-scheme: dark;
+    }
+    html,body{height:100%; margin:0; font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:linear-gradient(180deg,var(--bg),#061024); color:#e6eef6;}
+    .container{max-width:980px;margin:36px auto;padding:28px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));border-radius:12px;box-shadow:0 6px 30px rgba(2,6,23,0.7);}
+    header{display:flex;gap:16px;align-items:center;}
+    .logo{width:64px;height:64px;border-radius:10px;overflow:hidden;flex:0 0 64px;background:#000;display:flex;align-items:center;justify-content:center;}
+    .logo img{width:100%;height:100%;object-fit:contain;background:#071224;}
+    h1{margin:0;font-size:26px;}
+    .lead{color:var(--muted);margin-top:6px;}
+    .content{margin-top:20px;}
+    img.showcase{max-width:100%;border-radius:8px;border:1px solid rgba(255,255,255,0.03);display:block;margin:12px 0;}
+    pre{background:#061226;padding:12px;border-radius:8px;overflow:auto;color:#cfe9ff;}
+    code{font-family:var(--mono);font-size:13px;color:#dbeafe;}
+    ul{color:var(--muted)}
+    a{color:var(--accent)}
+    .section{margin-top:20px;}
+    .btn{display:inline-block;padding:8px 12px;border-radius:8px;background:var(--accent);color:white;text-decoration:none;font-weight:600}
+    footer{margin-top:26px;color:var(--muted);font-size:13px}
+    @media(max-width:640px){ .logo{width:52px;height:52px;flex:0 0 52px} }
+  </style>
+</head>
+<body>
+  <main class="container" role="main">
+    <header>
+      <div class="logo">
+        <img src="https://raw.githubusercontent.com/dejuri/rad/main/logo.png" alt="rad logo">
+      </div>
+      <div>
+        <h1>rad</h1>
+        <div class="lead">rad — a lightweight source-based package manager for Radrix GNU/Linux and other LFS-built GNU/Linux systems. Manages system packages built from source using TOML package headers, ok?</div>
+      </div>
+    </header>
 
-Ok just look it on github
-https://github.com/dejuri/rad
+    <div class="content">
+      <section class="section">
+        <p><strong>rad</strong> is an abbreviation for <em>Rathrix Automated TOML-packages Header</em>.</p>
+        <p>But when it combines with Slavic God Radogost, who is the God of trade and seafaring, it's even easier to call it just <strong>rad</strong>.</p>
+        <p>It stays for managing system packages; user ones are better managed with <a href="https://github.com/NixOS/nix" target="_blank" rel="noopener">nix</a> or other tools.</p>
+      </section>
+
+      <section class="section">
+        <h2>Installing GNU hello with rad</h2>
+        <img class="showcase" src="https://raw.githubusercontent.com/dejuri/rad/refs/heads/main/preview.gif" alt="Showcase">
+      </section>
+
+      <section class="section">
+        <h2>Dependencies</h2>
+        <p>If you do use LFS, you maybe have got most of those dependencies, but be sure you've got everything, otherwise you'll get an error one day.</p>
+        <ul>
+          <li>cargo (building rad and runtime)</li>
+          <li>make (runtime)</li>
+          <li>cmake (runtime)</li>
+          <li>meson (runtime)</li>
+          <li>ninja (runtime)</li>
+          <li>pip (runtime)</li>
+          <li>tar (runtime for unpacking tarballs)</li>
+          <li>unzip (runtime for non-tar archives)</li>
+          <li>git (runtime)</li>
+          <li>sh (runtime, can be symlink on other POSIX shell)</li>
+          <li>wget (runtime)</li>
+          <li>which (runtime, for rad could in checking own dependencies in --info)</li>
+        </ul>
+      </section>
+
+      <section class="section">
+        <h2>Installation</h2>
+        <p>Make sure you have installed runtime dependencies.</p>
+        <p>At the first clone rad with git:</p>
+        <pre><code>git clone https://github.com/dejuri/rad.git Rad
+cd Rad
+cargo build --release
+sudo cp ./target/release/rad /usr/bin
+sudo mkdir -p /etc/rad
+sudo cp ./examples/config.toml /etc/rad/
+rad -I
+# optionally: rad -i rad
+</code></pre>
+        <p>That's all!</p>
+      </section>
+
+      <section class="section">
+        <h2>To get help of the usage</h2>
+        <p>You might execute <code>rad -h</code> firstly, to see available arguments and how to use rad properly.</p>
+      </section>
+
+      <section class="section">
+        <h2>Usage / Examples</h2>
+        <p>Ok, you need now to understand how to describe your own package. You can look for the examples in <a href="https://github.com/dejuri/radpkg" target="_blank" rel="noopener">repository</a>, or look at this example of hello package. Remember, they must be in .toml format, or rad won't find them.</p>
+        <pre><code>[package]
+name = "hello"
+version = "2.12.1"
+description = "GNU Hello - the classic greeting program"
+source = "https://ftp.gnu.org/gnu/hello/hello-2.12.1.tar.gz"
+
+[build]
+system = "autotools"
+multilib_support = false
+depends = ""
+configure_args = ""
+</code></pre>
+
+        <p>If you created your own packages repository, you can use them locally without publishing. Change directory to where your packages are, and run:</p>
+        <pre><code>rad -P &lt;pkg&gt;
+rad -i &lt;pkg&gt;   # install (as root)
+cat /var/lib/rad/installed/&lt;pkg&gt;
+rad -r &lt;pkg&gt;   # remove (as root)
+</code></pre>
+      </section>
+
+      <section class="section">
+        <h2>Issues</h2>
+        <p>If you have an issue or a bug, create a <a href="https://github.com/dejuri/radpkg/issues/new" target="_blank" rel="noopener">new issue</a> and describe what happened.</p>
+      </section>
+
+      <section class="section">
+        <h2>What now?</h2>
+        <p>You better know why you've installed it. Remember, the code is open — you have rights to know what you are installing.</p>
+        <p>Create your repository of packages, install it, and rad will control it — stability. You can build a system with rad (a Radrix). Good luck, comrade.</p>
+      </section>
+
+      <section class="section">
+        <h2>License</h2>
+        <p><a href="https://choosealicense.com/licenses/gpl-3.0/" target="_blank" rel="noopener">GPL 3.0</a></p>
+      </section>
+    </div>
+
+    <footer>
+      <small>Repository: <a href="https://github.com/dejuri/rad" target="_blank" rel="noopener">dejuri/rad</a></small>
+    </footer>
+  </main>
+</body>
+</html>
