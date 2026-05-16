@@ -10,19 +10,6 @@ use std::process::Command;
 
 pub fn install_package(pkg_name: &str, prefix: &str, processing: &mut HashSet<String>) {
     let config = load_config();
-    if processing.contains(pkg_name) {
-        eprintln!(
-            "[rad] {} circular dependency detected: {}!",
-            "error:".red(),
-            pkg_name
-        );
-        return;
-    }
-    if is_installed(pkg_name) {
-        println!("[rad] {} is already installed, skipping.", pkg_name);
-        return;
-    }
-    processing.insert(pkg_name.to_string());
     let rad_path = match fetch_package(pkg_name) {
         Ok(p) => p,
         Err(e) => {
@@ -40,6 +27,36 @@ pub fn install_package(pkg_name: &str, prefix: &str, processing: &mut HashSet<St
             return;
         }
     };
+    if processing.contains(&pkg.name) {
+        eprintln!(
+            "[rad] {} circular dependency detected: {}!",
+            "error:".red(),
+            pkg_name
+        );
+        return;
+    }
+    if is_installed(&pkg.name) {
+        println!("[rad] {} is already installed, skipping.", pkg.name);
+        return;
+    }
+    processing.insert(pkg_name.to_string());
+    // let rad_path = match fetch_package(pkg_name) {
+    //     Ok(p) => p,
+    //     Err(e) => {
+    //         eprintln!("[rad] {} {}", "error:".red(), e);
+    //         processing.remove(pkg_name);
+    //         return;
+    //     }
+    // };
+
+    // let pkg = match parse_package(&rad_path) {
+    //     Ok(p) => p,
+    //     Err(e) => {
+    //         eprintln!("[rad] {} {}", "parse error:".red(), e);
+    //         processing.remove(pkg_name);
+    //         return;
+    //     }
+    // };
     for dep in &pkg.depends {
         if !is_installed(dep) {
             println!("[rad] resolving dependency: {}", dep);
