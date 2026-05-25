@@ -16,18 +16,18 @@ It stays for managing system packages, user ones is better to manage with [nix](
 
 ## Dependencies
 If you do use LFS, you maybe have got most of those dependencies, but be sure you've got everything, otherwise you'll get an error one day.
-* cargo (building rad and runtime)
-* make (runtime)
-* cmake (runtime)
-* meson (runtime)
-* ninja (runtime)
-* pip (runtime)
-* tar (runtime for unpacking tarballs)
-* unzip (runtime for non-tar archives)
-* git (runtime)
-* sh (runtime, can be symlink on other POSIX shell)
-* wget (runtime)
-* which (runtime, for rad could in checking own dependencies in --info)
+* `cargo` (building rad and runtime)
+* `make` (runtime)
+* `cmake` (runtime)
+* `meson` (runtime)
+* `ninja` (runtime)
+* `pip` (runtime)
+* `tar` (runtime for unpacking tarballs)
+* `unzip` (runtime for non-tar archives)
+* `git` (runtime)
+* `sh` (runtime, can be symlink on other POSIX shell)
+* `wget` (runtime)
+* `which` (runtime, for rad could in checking own dependencies in --info)
 ## Installation
 Make sure you have installed runtime dependencies
 
