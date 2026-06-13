@@ -139,15 +139,17 @@ fn main() {
             let db_path = "/var/lib/rad/installed";
             match fs::read_dir(db_path) {
                 Ok(entries) => {
+                    let mut names: Vec<String> = entries
+                        .flatten()
+                        .filter_map(|entry| entry.file_name().into_string().ok())
+                        .collect();
+                    names.sort();
+
                     println!("[rad] installed packages:");
-                    let mut i = 0;
-                    for entry in entries.flatten() {
-                        i += 1;
-                        if let Ok(name) = entry.file_name().into_string() {
-                            println!("{}. {}", i, name);
-                        }
+                    for (i, name) in names.iter().enumerate() {
+                        println!("{}. {}", i + 1, name);
                     }
-                    println!("[rad] Total packages installed: {}", i);
+                    println!("[rad] Total packages installed: {}", names.len());
                 }
                 Err(_) => println!("[rad] no packages installed yet."),
             }
