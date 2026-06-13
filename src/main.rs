@@ -48,6 +48,7 @@ fn main() {
                     -h, --help              print this menu\n    \
                     -V, --version           print rad version\n    \
                     -i, --install <pkg>     install a package\n    \
+                    -f, --force <pkg>       force package installation\n    \
                     -r, --remove  <pkg>     remove a package\n    \
                     -L, --list              list installed packages\n    \
                     -P, --pkg-info <pkg>    info about specific package\n    \
