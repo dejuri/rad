@@ -112,7 +112,15 @@ fn main() {
         "-i" | "--install" => {
             let mut processing = HashSet::new();
             match args.get(2) {
-                Some(name) => install_package(name, prefix, &mut processing),
+                Some(name) => install_package(name, prefix, false, &mut processing),
+                None => eprintln!("[rad] {} specify the package name", "error:".red()),
+            }
+        }
+        
+        "-f" | "--force" => {
+            let mut processing = HashSet::new();
+            match args.get(2) {
+                Some(name) => install_package(name, prefix, true, &mut processing),
                 None => eprintln!("[rad] {} specify the package name", "error:".red()),
             }
         }
