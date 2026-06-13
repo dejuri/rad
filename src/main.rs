@@ -161,7 +161,7 @@ fn main() {
             }
         }
 
-        "--hello" => println!("Hello World, btw microslop sucks"),
+        "--hello" => println!("Hi there, bro"),
 
         other => eprintln!(
             "[rad] {} unknown argument '{}', try -h or --help",

@@ -1,5 +1,6 @@
 use crate::config::load_config;
 use colored::Colorize;
+use serde::Deserialize;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
@@ -32,6 +33,72 @@ pub enum BuildSystem {
     },
 }
 
+fn string_or_array<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrVec {
+        String(String),
+        Vec(Vec<String>),
+    }
+
+    let value: Option<StringOrVec> = Option::deserialize(deserializer)?;
+    Ok(match value {
+        None => Vec::new(),
+        Some(StringOrVec::Vec(v)) => v,
+        Some(StringOrVec::String(s)) => {
+            if s.is_empty() {
+                Vec::new()
+            } else {
+                s.split(|c: char| c == ',' || c.is_whitespace())
+                    .map(|p| p.trim().to_string())
+                    .filter(|p| !p.is_empty())
+                    .collect()
+            }
+        }
+    })
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct RawPackageSection {
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    version: String,
+    #[serde(default)]
+    description: String,
+    #[serde(default)]
+    source: String,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct RawBuildSection {
+    #[serde(default)]
+    system: String,
+    #[serde(default, deserialize_with = "string_or_array")]
+    depends: Vec<String>,
+    #[serde(default, deserialize_with = "string_or_array")]
+    configure_args: Vec<String>,
+    #[serde(default, deserialize_with = "string_or_array")]
+    build_commands: Vec<String>,
+    #[serde(default)]
+    install_command: String,
+    #[serde(default)]
+    multilib_support: bool,
+    #[serde(default, deserialize_with = "string_or_array")]
+    multilib_configure_args: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct RawToml {
+    #[serde(default)]
+    package: RawPackageSection,
+    #[serde(default)]
+    build: RawBuildSection,
+}
+
 pub fn fetch_package(pkg_name: &str) -> Result<String, String> {
     let config = load_config();
     let local_path = format!("{}.toml", pkg_name);
@@ -57,61 +124,25 @@ pub fn fetch_package(pkg_name: &str) -> Result<String, String> {
 pub fn parse_package(path: &str) -> Result<Package, String> {
     let content = fs::read_to_string(path).map_err(|e| format!("cannot read {}: {}", path, e))?;
 
-    let mut name = String::new();
-    let mut version = String::new();
-    let mut description = String::new();
-    let mut source = String::new();
-    let mut build_system_str = String::new();
-    let mut depends = Vec::new();
-    let mut configure_args: Vec<String> = Vec::new();
-    let mut build_commands: Vec<String> = Vec::new();
-    let mut install_command = String::new();
-    let mut multilib_support = false;
-    let mut multilib_configure_args: Vec<String> = Vec::new();
+    let raw: RawToml = toml::from_str(&content)
+        .map_err(|e| format!("invalid toml in {}: {}", path, e))?;
 
-    for line in content.lines() {
-        let line = line.trim();
-        if line.starts_with('#') || line.starts_with('[') || line.is_empty() {
-            continue;
-        }
-        if let Some((key, value)) = line.split_once('=') {
-            let key = key.trim();
-            let value = value.trim();
-            let value = value
-                .strip_prefix('"')
-                .and_then(|v| v.strip_suffix('"'))
-                .unwrap_or(value)
-                .to_string();
+    let RawPackageSection {
+        name,
+        version,
+        description,
+        source,
+    } = raw.package;
 
-            match key {
-                "name" => name = value,
-                "version" => version = value,
-                "description" => description = value,
-                "source" => source = value,
-                "system" => build_system_str = value,
-                "depends" => {
-                    depends = value
-                        .split(',')
-                        .map(|s| s.trim().to_string())
-                        .filter(|s| !s.is_empty())
-                        .collect();
-                }
-                "configure_args" => {
-                    configure_args = value.split_whitespace().map(|s| s.to_string()).collect();
-                }
-                "build_commands" => {
-                    build_commands = vec![value];
-                }
-                "install_command" => install_command = value,
-                "multilib_support" => multilib_support = value == "true",
-                "multilib_configure_args" => {
-                    multilib_configure_args =
-                        value.split_whitespace().map(|s| s.to_string()).collect();
-                }
-                _ => {}
-            }
-        }
-    }
+    let RawBuildSection {
+        system: build_system_str,
+        depends,
+        configure_args,
+        build_commands,
+        install_command,
+        multilib_support,
+        multilib_configure_args,
+    } = raw.build;
 
     let build_system = match build_system_str.as_str() {
         "autotools" => BuildSystem::Autotools,

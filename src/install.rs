@@ -14,7 +14,6 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, processing: &m
         Ok(p) => p,
         Err(e) => {
             eprintln!("[rad] {} {}", "error:".red(), e);
-            processing.remove(pkg_name);
             return;
         }
     };
@@ -23,15 +22,16 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, processing: &m
         Ok(p) => p,
         Err(e) => {
             eprintln!("[rad] {} {}", "parse error:".red(), e);
-            processing.remove(pkg_name);
             return;
         }
     };
+
+    // Detect cycles by the package's canonical name, since the requested name may differ from pkg.name.
     if processing.contains(&pkg.name) {
         eprintln!(
             "[rad] {} circular dependency detected: {}!",
             "error:".red(),
-            pkg_name
+            pkg.name
         );
         return;
     }
@@ -41,7 +41,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, processing: &m
         println!("[rad] {} is already installed, skipping.", pkg.name);
         return;
     }
-    processing.insert(pkg_name.to_string());
+    processing.insert(pkg.name.clone());
 
     for dep in &pkg.depends {
         if !is_installed(dep) {
@@ -56,7 +56,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, processing: &m
         Ok(d) => d,
         Err(e) => {
             eprintln!("[rad] {} {}", "error:".red(), e);
-            processing.remove(pkg_name);
+            processing.remove(&pkg.name);
             return;
         }
     };
@@ -68,7 +68,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, processing: &m
 
     if let Err(e) = build_and_install(&pkg, &src_dir, prefix, &dest_dir, false) {
         eprintln!("[rad] {} {}", "build error:".red(), e);
-        processing.remove(pkg_name);
+        processing.remove(&pkg.name);
         return;
     }
 
@@ -77,7 +77,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, processing: &m
         println!("[rad] this package is multilib, so i build 32-bit version now");
         if let Err(e) = build_and_install(&pkg, &src_dir, prefix, &dest_dir, true) {
             eprintln!("[rad] {} {}", "multilib build error:".red(), e);
-            processing.remove(pkg_name);
+            processing.remove(&pkg.name);
             return;
         }
     }
@@ -91,7 +91,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, processing: &m
     // And now merging
     if let Err(e) = merge_to_system(&dest_dir) {
         eprintln!("[rad] {} {}", "merge error:".red(), e);
-        processing.remove(pkg_name);
+        processing.remove(&pkg.name);
         return;
     }
 
@@ -99,7 +99,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, processing: &m
     let build_dir = format!("/tmp/rad/build/{}", pkg_name);
     let _ = fs::remove_dir_all(&build_dir);
 
-    processing.remove(pkg_name);
+    processing.remove(&pkg.name);
     println!(
         "[rad] installation of '{}' finished successfully.",
         pkg.name
@@ -432,7 +432,18 @@ pub fn atomic_install(src: &Path, dest: &Path) -> std::io::Result<()> {
         }
         unix_fs::symlink(target, dest)?;
     } else {
-        let tmp = dest.with_extension("rad_new");
+        let tmp_name = match dest.file_name() {
+            Some(name) => {
+                let mut n = name.to_os_string();
+                n.push(".rad_new");
+                n
+            }
+            None => return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "destination path has no file name",
+            )),
+        };
+        let tmp = dest.with_file_name(tmp_name);
         fs::copy(src, &tmp)?;
         let _ = fs::set_permissions(&tmp, meta.permissions());
         fs::rename(&tmp, dest)?;
