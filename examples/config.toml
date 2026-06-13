@@ -4,6 +4,6 @@
 multilib = false
 
 [repo]
-url = "https://raw.githubusercontent.com/dejuri/radpkg/main"
+url = "https://raw.githubusercontent.com/dejuri/radpkg/main/stable-13"
 
 # End
