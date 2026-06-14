@@ -5,7 +5,6 @@ use std::path::Path;
 
 const DB_PATH: &str = "/var/lib/rad/installed";
 
-// Collect the set of file paths owned by every installed package except `exclude_pkg`
 fn files_owned_by_others(exclude_pkg: &str) -> std::io::Result<HashSet<String>> {
     let mut shared = HashSet::new();
     let entries = match fs::read_dir(DB_PATH) {
@@ -31,21 +30,19 @@ fn files_owned_by_others(exclude_pkg: &str) -> std::io::Result<HashSet<String>> 
     Ok(shared)
 }
 
-// Remove now-empty directories along the path from `path`'s parent up towards `/` stopping at the first non-empty directory or at root
 fn prune_empty_dirs(path: &Path) {
     let mut dir = match path.parent() {
         Some(p) => p.to_path_buf(),
         None => return,
     };
     loop {
-        // Never remove root or top-level system dirs
         if dir.as_os_str().is_empty() || dir == Path::new("/") {
             break;
         }
         match fs::read_dir(&dir) {
             Ok(mut entries) => {
                 if entries.next().is_some() {
-                    break; // If not empty then stop
+                    break;
                 }
             }
             Err(_) => break,
@@ -70,7 +67,7 @@ pub fn remove_package(pkg_name: &str) -> std::io::Result<()> {
     println!("[rad] removing package: {}", pkg_name);
     let content = fs::read_to_string(&manifest_path)?;
 
-    // Files claimed by other installed packages
+    // If files are own by other pkgs - dont delete them
     let shared = files_owned_by_others(pkg_name)?;
 
     let mut skipped = 0;
@@ -89,7 +86,6 @@ pub fn remove_package(pkg_name: &str) -> std::io::Result<()> {
 
         let path = Path::new(line);
 
-        // /usr/share/info/dir is a shared index file so skip it
         if line == "/usr/share/info/dir" {
             continue;
         }

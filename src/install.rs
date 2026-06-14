@@ -26,7 +26,6 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, processing: &m
         }
     };
 
-    // Detect cycles by the package's canonical name, since the requested name may differ from pkg.name.
     if processing.contains(&pkg.name) {
         eprintln!(
             "[rad] {} circular dependency detected: {}!",
@@ -291,7 +290,7 @@ pub fn build_and_install(
 
         BuildSystem::Manual {
             build_commands,
-            install_command,
+            install_commands,
         } => {
             println!("[rad] build system: manual");
             for (i, cmd_str) in build_commands.iter().enumerate() {
@@ -314,19 +313,26 @@ pub fn build_and_install(
                     return Err(format!("build step failed: {}", cmd_str));
                 }
             }
-            println!("[rad] install step: {}", install_command);
-            let status = Command::new("sh")
-                .arg("-c")
-                .arg(install_command)
-                .current_dir(src_dir)
-                .env("DESTDIR", dest_dir)
-                .env("PREFIX", prefix)
-                .env("LIBDIR", &current_libdir)
-                .env("IS_M32", if is_m32 { "1" } else { "0" })
-                .status()
-                .map_err(|e| format!("install step failed to start: {}", e))?;
-            if !status.success() {
-                return Err(format!("install step failed: {}", install_command));
+            for (i, cmd_str) in install_commands.iter().enumerate() {
+                println!(
+                    "[rad] install step {}/{}: {}",
+                    i + 1,
+                    install_commands.len(),
+                    cmd_str
+                );
+                let status = Command::new("sh")
+                    .arg("-c")
+                    .arg(cmd_str)
+                    .current_dir(src_dir)
+                    .env("DESTDIR", dest_dir)
+                    .env("PREFIX", prefix)
+                    .env("LIBDIR", &current_libdir)
+                    .env("IS_M32", if is_m32 { "1" } else { "0" })
+                    .status()
+                    .map_err(|e| format!("install step failed to start: {}", e))?;
+                if !status.success() {
+                    return Err(format!("install step failed: {}", cmd_str));
+                }
             }
         }
     }

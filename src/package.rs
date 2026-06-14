@@ -29,7 +29,7 @@ pub enum BuildSystem {
     Make,
     Manual {
         build_commands: Vec<String>,
-        install_command: String,
+        install_commands: Vec<String>,
     },
 }
 
@@ -47,18 +47,43 @@ where
     let value: Option<StringOrVec> = Option::deserialize(deserializer)?;
     Ok(match value {
         None => Vec::new(),
-        Some(StringOrVec::Vec(v)) => v,
+        Some(StringOrVec::Vec(v)) => v.into_iter().filter(|s| !s.is_empty()).collect(),
         Some(StringOrVec::String(s)) => {
             if s.is_empty() {
                 Vec::new()
-            } else {
-                s.split(|c: char| c == ',' || c.is_whitespace())
+            } else if s.contains(" && ") {
+                s.split(" && ")
                     .map(|p| p.trim().to_string())
                     .filter(|p| !p.is_empty())
                     .collect()
+            } else {
+                let parts: Vec<String> = s
+                    .split(',')
+                    .map(|p| p.trim().to_string())
+                    .filter(|p| !p.is_empty())
+                    .collect();
+                if parts.len() > 1 { parts } else { vec![s.trim().to_string()] }
             }
         }
     })
+}
+
+fn bool_or_string<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum BoolOrString {
+        Bool(bool),
+        String(String),
+    }
+
+    match Option::deserialize(deserializer)? {
+        None => Ok(false),
+        Some(BoolOrString::Bool(b)) => Ok(b),
+        Some(BoolOrString::String(s)) => Ok(s.eq_ignore_ascii_case("true")),
+    }
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -83,9 +108,9 @@ struct RawBuildSection {
     configure_args: Vec<String>,
     #[serde(default, deserialize_with = "string_or_array")]
     build_commands: Vec<String>,
-    #[serde(default)]
-    install_command: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "string_or_array", alias = "install_command")]
+    install_commands: Vec<String>,
+    #[serde(default, deserialize_with = "bool_or_string")]
     multilib_support: bool,
     #[serde(default, deserialize_with = "string_or_array")]
     multilib_configure_args: Vec<String>,
@@ -103,13 +128,11 @@ pub fn fetch_package(pkg_name: &str) -> Result<String, String> {
     let config = load_config();
     let local_path = format!("{}.toml", pkg_name);
     if Path::new(&local_path).exists() {
-        // println!("[rad] using local {}", local_path);
         return Ok(local_path);
     }
     let url = format!("{}/{}.toml", config.repo.url, pkg_name);
     let dest = format!("/tmp/rad/tomls/{}.toml", pkg_name);
     fs::create_dir_all("/tmp/rad/tomls").unwrap();
-    // println!("[rad] fetching toml from {}...", url);
     let status = Command::new("wget")
         .args(["-q", "-O", &dest, &url])
         .status()
@@ -139,7 +162,7 @@ pub fn parse_package(path: &str) -> Result<Package, String> {
         depends,
         configure_args,
         build_commands,
-        install_command,
+        install_commands,
         multilib_support,
         multilib_configure_args,
     } = raw.build;
@@ -155,12 +178,12 @@ pub fn parse_package(path: &str) -> Result<Package, String> {
             if build_commands.is_empty() {
                 return Err("manual build system requires 'build_commands' field".to_string());
             }
-            if install_command.is_empty() {
-                return Err("manual build system requires 'install_command' field".to_string());
+            if install_commands.is_empty() {
+                return Err("manual build system requires 'install_commands' field".to_string());
             }
             BuildSystem::Manual {
                 build_commands,
-                install_command,
+                install_commands,
             }
         }
         other => return Err(format!("unknown build system: '{}'", other)),
@@ -203,13 +226,14 @@ pub fn package_info(pkg_name: &str, processing: &mut HashSet<String>) {
     };
     println!(
         "[rad] Info about {}{}:\n  \
-    {}, \n  \
-    Source of the package: {}, \n  \
-    Version of the package: {}",
+        {}, \n  \
+        Source of the package: {}, \n  \
+        Version of the package: {}",
         pkg.name.yellow(),
         if Path::new(&format!("{}.toml", pkg_name)).exists() {
             " (local)"
-        } else {
+        }
+        else {
             ""
         },
         pkg.description,
