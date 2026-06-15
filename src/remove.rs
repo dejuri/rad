@@ -5,7 +5,7 @@ use std::path::Path;
 
 const DB_PATH: &str = "/var/lib/rad/installed";
 
-fn files_owned_by_others(exclude_pkg: &str) -> std::io::Result<HashSet<String>> {
+pub fn files_owned_by_others(exclude_pkg: &str) -> std::io::Result<HashSet<String>> {
     let mut shared = HashSet::new();
     let entries = match fs::read_dir(DB_PATH) {
         Ok(e) => e,
@@ -30,12 +30,13 @@ fn files_owned_by_others(exclude_pkg: &str) -> std::io::Result<HashSet<String>> 
     Ok(shared)
 }
 
-fn prune_empty_dirs(path: &Path) {
+pub fn prune_empty_dirs(path: &Path) {
     let mut dir = match path.parent() {
         Some(p) => p.to_path_buf(),
         None => return,
     };
     loop {
+        // Never remove root or top-level system dirs. This is safety default
         if dir.as_os_str().is_empty() || dir == Path::new("/") {
             break;
         }
@@ -67,7 +68,7 @@ pub fn remove_package(pkg_name: &str) -> std::io::Result<()> {
     println!("[rad] removing package: {}", pkg_name);
     let content = fs::read_to_string(&manifest_path)?;
 
-    // If files are own by other pkgs - dont delete them
+    // If files are owned by other installed packages don't delete
     let shared = files_owned_by_others(pkg_name)?;
 
     let mut skipped = 0;

@@ -81,6 +81,15 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, processing: &m
         }
     }
 
+    // Read the OLD manifest before overwriting it, so we can diff later.
+    let db_manifest = format!("/var/lib/rad/installed/{}", pkg.name);
+    let old_files: HashSet<String> = fs::read_to_string(&db_manifest)
+        .unwrap_or_default()
+        .lines()
+        .map(|l| l.trim().to_string())
+        .filter(|l| !l.is_empty())
+        .collect();
+
     // Now go register
     println!("[rad] indexing files for {}...", pkg.name);
     if let Err(e) = register_package_files(&pkg.name, &dest_dir) {
@@ -92,6 +101,11 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, processing: &m
         eprintln!("[rad] {} {}", "merge error:".red(), e);
         processing.remove(&pkg.name);
         return;
+    }
+
+    // Remove files that were in the old install but are absent in the new one.
+    if force && !old_files.is_empty() {
+        cleanup_orphaned_files(&pkg.name, &old_files);
     }
 
     let _ = fs::remove_dir_all(&dest_dir);
@@ -384,6 +398,43 @@ pub fn register_package_files(pkg_name: &str, dest_dir: &str) -> std::io::Result
     let mut manifest = fs::File::create(format!("{}/{}", db_path, pkg_name))?;
     let dest_path = Path::new(dest_dir);
     collect_files(dest_path, dest_path, &mut manifest)
+}
+
+/// Force now works in stack, so if in new build no old compiled files - remove them
+pub fn cleanup_orphaned_files(pkg_name: &str, old_files: &HashSet<String>) {
+    let db_manifest = format!("/var/lib/rad/installed/{}", pkg_name);
+    let new_files: HashSet<String> = fs::read_to_string(&db_manifest)
+        .unwrap_or_default()
+        .lines()
+        .map(|l| l.trim().to_string())
+        .filter(|l| !l.is_empty())
+        .collect();
+
+    // Files owned by other packages, never touch these
+    let shared = crate::remove::files_owned_by_others(pkg_name)
+        .unwrap_or_default();
+
+    let orphans: Vec<&String> = old_files
+        .iter()
+        .filter(|f| !new_files.contains(*f) && !shared.contains(*f))
+        .collect();
+
+    if orphans.is_empty() {
+        return;
+    }
+
+    println!("[rad] cleaning {} orphaned file(s) from previous install...", orphans.len());
+    for path_str in orphans {
+        let path = Path::new(path_str);
+        if path.exists() {
+            match fs::remove_file(path) {
+                Ok(_) => {
+                    crate::remove::prune_empty_dirs(path);
+                }
+                Err(e) => eprintln!("[rad] could not remove orphan {}: {}", path_str, e),
+            }
+        }
+    }
 }
 
 pub fn collect_files(root: &Path, current: &Path, manifest: &mut fs::File) -> std::io::Result<()> {
