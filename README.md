@@ -1,9 +1,9 @@
 ![Logo](https://raw.githubusercontent.com/dejuri/rad/main/logo.png)
 # rad
 
-rad — a lightweight source-based package manager for Radrix GNU/Linux and other LFS-built GNU/Linux systems. Manages system packages built from source using TOML package headers, ok?
+rad — a lightweight source-based package manager for Radian GNU/Linux and other LFS-built GNU/Linux systems. Manages system packages built from source using TOML package headers, ok?
 
-rad is an abbreviation for Radrix Automated TOML-packages Handler
+rad is an abbreviation for Radian Automated TOML-packages Handler
 
 but when it combines with Slavic God Radogost, who is the God of trade and seafaring,
 even easier to call it just rad.
@@ -120,7 +120,7 @@ You better know why you've installed it. Remember, the code is open, i think you
 
 Ok, so what now, you can create your repository of packages, install it, and rad will control it, it is good. This is the stability.
 
-You can just make a system built with rad, a Radrix, and i have a project and done some progress. Good luck, comrade, do what you find needed
+You can just make a system built with rad, a Radian, and i have a project and done some progress. Good luck, comrade, do what you find needed
 ## License
 
 [GPL 3.0](https://choosealicense.com/licenses/gpl-3.0/)
