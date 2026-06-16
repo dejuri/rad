@@ -99,9 +99,11 @@ fn main() {
             println!("CONFIG\n  \
                     ARCH\n    \
                         - multilib: {}\n  \
+                    BUILD\n    \
+                        - makeopts: {}\n  \
                     REPO\n    \
                         - url: {}",
-                multilib_status, config.repo.url
+                multilib_status, config.build.makeopts, config.repo.url
             );
         }
         "-V" | "--version" => println!(

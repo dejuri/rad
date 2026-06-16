@@ -191,6 +191,12 @@ pub fn build_and_install(
     fs::create_dir_all(dest_dir).unwrap();
     let mut current_configure_args = pkg.configure_args.clone();
     let mut current_libdir = format!("{}/lib", prefix);
+    let config = load_config();
+    let jobs = if config.build.makeopts == 0 {
+        num_cpus::get().to_string()
+    } else {
+        config.build.makeopts.to_string()
+    };
 
     if is_m32 {
         println!("[rad] building 32-bit version of {}", pkg.name);
@@ -214,7 +220,7 @@ pub fn build_and_install(
                 cmd.arg(arg);
             }
             run_cmd(cmd, "configure")?;
-            run_cmd(make_cmd(src_dir, &["-j4"]), "make")?;
+            run_cmd(make_cmd(src_dir, &[&format!("-j{}", jobs)]), "make")?;
             run_cmd(
                 make_cmd(src_dir, &[&format!("DESTDIR={}", dest_dir), "install"]),
                 "make install",
@@ -223,7 +229,7 @@ pub fn build_and_install(
 
         BuildSystem::Make => {
             println!("[rad] build system: make");
-            let mut args: Vec<String> = vec!["-j4".into()];
+            let mut args: Vec<String> = vec![format!("-j{}", jobs)];
             for arg in &current_configure_args {
                 args.push(arg.clone());
             }
@@ -261,7 +267,7 @@ pub fn build_and_install(
                 cmd.arg(arg);
             }
             run_cmd(cmd, "cmake")?;
-            run_cmd(ninja_cmd(&build_dir, &[]), "ninja")?;
+            run_cmd(ninja_cmd(&build_dir, &["-j", &jobs]), "ninja")?;
             run_cmd(ninja_install_cmd(&build_dir, dest_dir), "ninja install")?;
         }
 
@@ -278,14 +284,18 @@ pub fn build_and_install(
                 cmd.arg(arg);
             }
             run_cmd(cmd, "meson setup")?;
-            run_cmd(ninja_cmd(&build_dir, &[]), "ninja")?;
+            run_cmd(ninja_cmd(&build_dir, &["-j", &jobs]), "ninja")?;
             run_cmd(ninja_install_cmd(&build_dir, dest_dir), "ninja install")?;
         }
 
         BuildSystem::Cargo => {
             println!("[rad] build system: cargo");
             let mut cmd = Command::new("cargo");
-            cmd.arg("build").arg("--release").current_dir(src_dir);
+            cmd.arg("build")
+                .arg("--release")
+                .arg("--jobs")
+                .arg(jobs)
+                .current_dir(src_dir);
             run_cmd(cmd, "cargo build")?;
             let bin_dest = format!("{}{}/bin", dest_dir, prefix);
             fs::create_dir_all(&bin_dest).unwrap();
@@ -321,6 +331,8 @@ pub fn build_and_install(
                     .env("PREFIX", prefix)
                     .env("LIBDIR", &current_libdir)
                     .env("IS_M32", if is_m32 { "1" } else { "0" })
+                    .env("RAD_MULTILIB", if config.arch.multilib { "1" } else { "0" })
+                    .env("RAD_MAKEOPTS", &jobs)
                     .status()
                     .map_err(|e| format!("build step failed to start: {}", e))?;
                 if !status.success() {
@@ -342,6 +354,8 @@ pub fn build_and_install(
                     .env("PREFIX", prefix)
                     .env("LIBDIR", &current_libdir)
                     .env("IS_M32", if is_m32 { "1" } else { "0" })
+                    .env("RAD_MULTILIB", if config.arch.multilib { "1" } else { "0" })
+                    .env("RAD_MAKEOPTS", &jobs)
                     .status()
                     .map_err(|e| format!("install step failed to start: {}", e))?;
                 if !status.success() {
