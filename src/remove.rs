@@ -7,8 +7,8 @@ use std::io;
 
 const DB_PATH: &str = "/var/lib/rad/installed";
 
-fn ask_to_remove(pkg_name: &str) -> io::Result<()> {
-    println!("[rad] {} is installed, are you sure that you want to remove it? Y/n", pkg_name);
+fn ask_to_remove() -> io::Result<()> {
+    println!("[rad] Are you sure that you want remove this package? Y/n");
     let mut buffer = String::new();
     match io::stdin().read_line(&mut buffer) {
         Ok(_) => {},
@@ -25,7 +25,7 @@ fn ask_to_remove(pkg_name: &str) -> io::Result<()> {
         }
         _ => {
             eprintln!("[rad] I don't understand you");
-            let _ = ask_to_remove(pkg_name);
+            let _ = ask_to_remove();
             return Ok(()); 
         }
     }
@@ -92,10 +92,12 @@ pub fn remove_package(pkg_name: &str) -> std::io::Result<()> {
         return Ok(());
     }
 
-    if config.build.ask {let _ = ask_to_remove(pkg_name); }
+    let content = fs::read_to_string(&manifest_path)?;
+
+    println!("\n[rad] {} is installed, going to remove files:\n{}", pkg_name, content.yellow());
+    if config.build.ask {let _ = ask_to_remove(); }
 
     println!("[rad] removing package: {}", pkg_name);
-    let content = fs::read_to_string(&manifest_path)?;
 
     // If files are owned by other installed packages don't delete
     let shared = files_owned_by_others(pkg_name)?;
