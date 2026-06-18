@@ -21,6 +21,7 @@ pub struct ArchConfig {
 pub struct BuildConfig {
     #[serde(default)]
     pub makeopts: u8,
+    pub ask: bool,
 }
 
 #[derive(Deserialize, Default)]

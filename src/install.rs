@@ -7,7 +7,31 @@ use std::io::Write;
 use std::os::unix::fs as unix_fs;
 use std::path::Path;
 use std::process::Command;
+use std::io;
 
+pub fn ask_to_install() -> io::Result<()> {
+    println!("[rad] Are you sure that you want install this package? Y/n");
+    let mut buffer = String::new();
+    match io::stdin().read_line(&mut buffer) {
+        Ok(_) => {},
+        Err(error) => println!("[rad] {} {}", "error:".red(), error),
+    }
+    match buffer.trim() {
+        "y" | "Y" => {
+            println!("[rad] Ok, comrade, continuing");
+            return Ok(()); 
+        }
+        "n" | "N" => {
+            println!("[rad] Ok, comrade, aborting");
+            std::process::exit(0);     
+        }
+        _ => {
+            eprintln!("[rad] I don't understand you");
+            let _ = ask_to_install();
+            return Ok(()); 
+        }
+    }
+}
 pub fn install_package(pkg_name: &str, prefix: &str, force: bool, processing: &mut HashSet<String>) {
     let config = load_config();
     let rad_path = match fetch_package(pkg_name) {
@@ -48,9 +72,17 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, processing: &m
             install_package(dep, prefix, false, processing);
         }
     }
-    println!("[rad] package: {} {}", pkg.name, pkg.version);
-    println!("[rad] info: {}", pkg.description);
-    println!("[rad] source: {}", pkg.source);
+
+    println!("\n[rad] package: {} {}\n  \
+                - info: {}\n  \
+                - source: {}", pkg.name, pkg.version.yellow(), pkg.description, pkg.source);
+    if is_installed(&pkg.name) {
+        println!("  - it is installed on your system\n")
+    }
+    else { println!()}
+
+    if config.build.ask {let _ = ask_to_install(); }
+
     let src_dir = match download_and_extract(&pkg) {
         Ok(d) => d,
         Err(e) => {

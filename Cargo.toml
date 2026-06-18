@@ -1,6 +1,6 @@
 [package]
 name = "rad"
-version = "26.6.18"
+version = "26.6.19"
 edition = "2024"
 description = "Rad - package manager for Radrix GNU/Linux or LFS. This is an abbreviation for Rathrix Automated TOML-packages Header. But when it combines with Slavic God Radogost, who is the God of trade and seafaring, even easier to call it just Rad"
 

@@ -62,12 +62,6 @@ fn main() {
             );
         }
         "-I" | "--info" => {
-            let multilib_status = if config.arch.multilib {
-                "yes".green()
-            } else {
-                "no".red()
-            };
-
             // Start of info
             println!("[rad] info:\n\
             DEPENDENCIES");
@@ -100,10 +94,11 @@ fn main() {
                     ARCH\n    \
                         - multilib: {}\n  \
                     BUILD\n    \
-                        - makeopts: {}\n  \
+                        - makeopts: {}\n    \
+                        - ask: {}\n  \
                     REPO\n    \
                         - url: {}",
-                multilib_status, config.build.makeopts, config.repo.url
+                config.arch.multilib, config.build.makeopts, config.build.ask, config.repo.url
             );
         }
         "-V" | "--version" => println!(
@@ -135,7 +130,7 @@ fn main() {
                 }
             }
             None => eprintln!("[rad] {} specify the package name", "error:".red()),
-        },
+        }
 
         "-L" | "--list" => {
             let db_path = "/var/lib/rad/installed";
