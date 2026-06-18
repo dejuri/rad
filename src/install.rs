@@ -9,7 +9,7 @@ use std::path::Path;
 use std::process::Command;
 use std::io;
 
-pub fn ask_to_install() -> io::Result<()> {
+fn ask_to_install() -> io::Result<()> {
     println!("[rad] Are you sure that you want install this package? Y/n");
     let mut buffer = String::new();
     match io::stdin().read_line(&mut buffer) {

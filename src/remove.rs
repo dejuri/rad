@@ -1,9 +1,35 @@
+use crate::config::load_config;
 use colored::Colorize;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
+use std::io;
 
 const DB_PATH: &str = "/var/lib/rad/installed";
+
+fn ask_to_remove(pkg_name: &str) -> io::Result<()> {
+    println!("[rad] {} is installed, are you sure that you want to remove it? Y/n", pkg_name);
+    let mut buffer = String::new();
+    match io::stdin().read_line(&mut buffer) {
+        Ok(_) => {},
+        Err(error) => println!("[rad] {} {}", "error:".red(), error),
+    }
+    match buffer.trim() {
+        "y" | "Y" => {
+            println!("[rad] Ok, comrade, continuing");
+            return Ok(()); 
+        }
+        "n" | "N" => {
+            println!("[rad] Ok, comrade, aborting");
+            std::process::exit(0);     
+        }
+        _ => {
+            eprintln!("[rad] I don't understand you");
+            let _ = ask_to_remove(pkg_name);
+            return Ok(()); 
+        }
+    }
+}
 
 pub fn files_owned_by_others(exclude_pkg: &str) -> std::io::Result<HashSet<String>> {
     let mut shared = HashSet::new();
@@ -60,10 +86,13 @@ pub fn prune_empty_dirs(path: &Path) {
 
 pub fn remove_package(pkg_name: &str) -> std::io::Result<()> {
     let manifest_path = format!("{}/{}", DB_PATH, pkg_name);
+    let config = load_config();
     if !Path::new(&manifest_path).exists() {
         println!("[rad] {} {} is not installed.", "error:".red(), pkg_name);
         return Ok(());
     }
+
+    if config.build.ask {let _ = ask_to_remove(pkg_name); }
 
     println!("[rad] removing package: {}", pkg_name);
     let content = fs::read_to_string(&manifest_path)?;
