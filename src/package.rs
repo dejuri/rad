@@ -128,13 +128,13 @@ struct RawToml {
 pub fn fetch_package(pkg_name: &str) -> Result<String, String> {
     let config = load_config();
 
-    // локальний файл (як і раніше, підтримує category/pkg.toml якщо є "/")
+    // if package can be local
     let local_path = format!("{}.toml", pkg_name);
     if Path::new(&local_path).exists() {
         return Ok(local_path);
     }
 
-    let atom = index::resolve(pkg_name, &config.repo.url)?; // "category/name"
+    let atom = index::resolve(pkg_name, &config.repo.url)?;
     let url = format!("{}/{}.toml", config.repo.url, atom);
     let dest = format!("/tmp/rad/tomls/{}.toml", atom);
     if let Some(parent) = Path::new(&dest).parent() {
