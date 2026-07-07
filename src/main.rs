@@ -15,7 +15,7 @@ fn is_there(name: &str) -> Result<(), String> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
-        .map_err(|_| format!("{}", "idk without which".blue()))?;
+        .map_err(|_| format!("{}", "install which firstly".blue()))?;
 
     if status.success() {
         Ok(())
@@ -47,12 +47,13 @@ fn main() {
                 Commands:\n    \
                     -h, --help              print this menu\n    \
                     -V, --version           print rad version\n    \
-                    -i, --install <pkg>     install a package\n    \
-                    -f, --force <pkg>       force package installation\n    \
-                    -r, --remove  <pkg>     remove a package\n    \
+                    -s, --sync              sync package index of current repository\n    \
                     -L, --list              list installed packages\n    \
-                    -P, --pkg-info <pkg>    info about specific package\n    \
-                    -I, --info              info about rad on your system\n\n  \
+                    -I, --info              info about rad on your system\n    \
+                    -i, --install <pkg>     install a package\n    \
+                    -f, --force <pkg>       force package installation (used to update packages)\n    \
+                    -r, --remove  <pkg>     remove a package\n    \
+                    -P, --pkg-info <pkg>    info about specific package\n\n  \
                 Packages are searched:\n    \
                     1. Locally:   ./<pkg>.toml\n    \
                     2. Remote:    {}/<pkg>.toml",
@@ -74,18 +75,18 @@ fn main() {
                 .status();
             match status {
                 Ok(s) if s.success() => {
-                    println!("  - which -- {}", "found".green());
+                    println!("  - which: {}", "found".green());
                 }
                 _ => {
-                    println!("  - which -- {}", "not found".red());
+                    println!("  - which: {}", "not found".red());
                 }
             }   
 
             // Dependencies
             for i in deps {
                 match is_there(i) {
-                    Ok(_) => println!("  - {} -- {}", i, "found".green()),
-                    Err(e) => eprintln!("  - {} -- {}", i, e.red()),
+                    Ok(_) => println!("  - {}: {}", i, "found".green()),
+                    Err(e) => eprintln!("  - {}: {}", i, e.red()),
                 }
             }
 
@@ -115,6 +116,14 @@ fn main() {
             }
         }
         
+        "-s" | "--sync" => {
+            println!("[rad] updating package index of the repository");
+            match rad::index::refresh_index(&config.repo.url) {
+                Ok(_) => println!("[rad] package index updated"),
+                Err(e) => eprintln!("[rad] {} {}", "error:".red(), e),
+            }
+        }
+
         "-f" | "--force" => {
             let mut processing = HashSet::new();
             match args.get(2) {

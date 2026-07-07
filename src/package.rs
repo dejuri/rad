@@ -1,4 +1,5 @@
 use crate::config::load_config;
+use crate::index;
 use colored::Colorize;
 use serde::Deserialize;
 use std::collections::HashSet;
@@ -126,24 +127,29 @@ struct RawToml {
 
 pub fn fetch_package(pkg_name: &str) -> Result<String, String> {
     let config = load_config();
+
+    // локальний файл (як і раніше, підтримує category/pkg.toml якщо є "/")
     let local_path = format!("{}.toml", pkg_name);
     if Path::new(&local_path).exists() {
         return Ok(local_path);
     }
-    let url = format!("{}/{}.toml", config.repo.url, pkg_name);
-    let dest = format!("/tmp/rad/tomls/{}.toml", pkg_name);
-    fs::create_dir_all("/tmp/rad/tomls").unwrap();
+
+    let atom = index::resolve(pkg_name, &config.repo.url)?; // "category/name"
+    let url = format!("{}/{}.toml", config.repo.url, atom);
+    let dest = format!("/tmp/rad/tomls/{}.toml", atom);
+    if let Some(parent) = Path::new(&dest).parent() {
+        fs::create_dir_all(parent).unwrap();
+    }
     let status = Command::new("wget")
         .args(["-q", "-O", &dest, &url])
         .status()
         .map_err(|e| format!("wget failed: {}", e))?;
     if !status.success() {
-        return Err(format!(
-            "couldn't find {} in current repository.", pkg_name
-        ));
+        return Err(format!("couldn't find {} in current repository.", atom));
     }
     Ok(dest)
 }
+
 pub fn parse_package(path: &str) -> Result<Package, String> {
     let content = fs::read_to_string(path).map_err(|e| format!("cannot read {}: {}", path, e))?;
 
