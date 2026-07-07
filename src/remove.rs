@@ -88,7 +88,7 @@ pub fn remove_package(pkg_name: &str) -> std::io::Result<()> {
     let manifest_path = format!("{}/{}", DB_PATH, pkg_name);
     let config = load_config();
     if !Path::new(&manifest_path).exists() {
-        println!("[rad] {} {} is not installed", "error:".red(), pkg_name);
+        println!("[rad] {} package '{}' is not installed", "error:".red(), pkg_name);
         return Ok(());
     }
 
