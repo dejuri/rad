@@ -38,7 +38,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     let atom = match index::resolve(pkg_name, &config.repo.url) {
         Ok(a) => a,
         Err(e) => {
-            eprintln!("[rad] {} {}", "error resolving:".red(), e);
+            eprintln!("[rad] {} {}", "error:".red(), e);
             processing.remove(pkg_name);
             return;
         }

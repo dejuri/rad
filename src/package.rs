@@ -218,7 +218,7 @@ pub fn package_info(pkg_name: &str, processing: &mut HashSet<String>) {
     let atom = match index::resolve(pkg_name, &config.repo.url) {
         Ok(a) => a,
         Err(e) => {
-            eprintln!("[rad] {} {}", "error resolving:".red(), e);
+            eprintln!("[rad] {} {}", "error:".red(), e);
             processing.remove(pkg_name);
             return;
         }
