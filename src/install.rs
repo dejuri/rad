@@ -1,5 +1,6 @@
 use crate::config::load_config;
 use crate::package::{BuildSystem, Package, fetch_package, parse_package};
+use crate::index;
 use colored::Colorize;
 use std::collections::HashSet;
 use std::fs;
@@ -32,8 +33,16 @@ fn ask_to_install() -> io::Result<()> {
         }
     }
 }
-pub fn install_package(pkg_name: &str, prefix: &str, force: bool, processing: &mut HashSet<String>) {
+pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool, processing: &mut HashSet<String>) {
     let config = load_config();
+    let atom = match index::resolve(pkg_name, &config.repo.url) {
+        Ok(a) => a,
+        Err(e) => {
+            eprintln!("[rad] {} {}", "error resolving:".red(), e);
+            processing.remove(pkg_name);
+            return;
+        }
+    };
     let rad_path = match fetch_package(pkg_name) {
         Ok(p) => p,
         Err(e) => {
@@ -50,38 +59,40 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, processing: &m
         }
     };
 
+    // Don't build if installed
+    if is_installed(&pkg.name) && !force {
+        println!("[rad] {} is already installed, skipping", atom.yellow());
+        return;
+    }
+
+    // Package information
+    println!("\n[rad] package: {} ({})\n  \
+                - info: {}\n  \
+                - source: {}", atom.yellow(), pkg.version.yellow(), pkg.description, pkg.source);
+    if is_installed(&pkg.name) {
+        println!("  - it is installed on your system\n")
+    }
+    else { println!() }
+
+    if config.build.ask && askable{let _ = ask_to_install(); }
+
     if processing.contains(&pkg.name) {
         eprintln!(
             "[rad] {} circular dependency detected: {}!",
             "error:".red(),
-            pkg.name
+            atom.yellow()
         );
         return;
     }
 
-    // Don't build if installed
-    if is_installed(&pkg.name) && !force {
-        println!("[rad] {} is already installed, skipping.", pkg.name);
-        return;
-    }
     processing.insert(pkg.name.clone());
 
     for dep in &pkg.depends {
         if !is_installed(dep) {
             println!("[rad] resolving dependency: {}", dep);
-            install_package(dep, prefix, false, processing);
+            install_package(dep, prefix, false, false, processing);
         }
     }
-
-    println!("\n[rad] package: {} {}\n  \
-                - info: {}\n  \
-                - source: {}", pkg.name, pkg.version.yellow(), pkg.description, pkg.source);
-    if is_installed(&pkg.name) {
-        println!("  - it is installed on your system\n")
-    }
-    else { println!()}
-
-    if config.build.ask {let _ = ask_to_install(); }
 
     let src_dir = match download_and_extract(&pkg) {
         Ok(d) => d,
@@ -146,8 +157,8 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, processing: &m
 
     processing.remove(&pkg.name);
     println!(
-        "[rad] installation of '{}' finished successfully.",
-        pkg.name
+        "[rad] installation of {} finished successfully",
+        atom.yellow()
     );
 }
 
@@ -469,7 +480,7 @@ pub fn cleanup_orphaned_files(pkg_name: &str, old_files: &HashSet<String>) {
         return;
     }
 
-    println!("[rad] cleaning {} orphaned file(s) from previous install...", orphans.len());
+    println!("[rad] cleaning {} orphaned file(s) from previous install", orphans.len());
     for path_str in orphans {
         let path = Path::new(path_str);
         if path.exists() {

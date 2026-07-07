@@ -214,6 +214,15 @@ pub fn parse_package(path: &str) -> Result<Package, String> {
 
 pub fn package_info(pkg_name: &str, processing: &mut HashSet<String>) {
     processing.insert(pkg_name.to_string());
+    let config = load_config();
+    let atom = match index::resolve(pkg_name, &config.repo.url) {
+        Ok(a) => a,
+        Err(e) => {
+            eprintln!("[rad] {} {}", "error resolving:".red(), e);
+            processing.remove(pkg_name);
+            return;
+        }
+    };
     let rad_path = match fetch_package(pkg_name) {
         Ok(p) => p,
         Err(e) => {
@@ -235,7 +244,7 @@ pub fn package_info(pkg_name: &str, processing: &mut HashSet<String>) {
         {}, \n  \
         Source of the package: {}, \n  \
         Version of the package: {}",
-        pkg.name.yellow(),
+        atom.yellow(),
         if Path::new(&format!("{}.toml", pkg_name)).exists() {
             " (local)"
         }

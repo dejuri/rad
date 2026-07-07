@@ -111,7 +111,7 @@ fn main() {
         "-i" | "--install" => {
             let mut processing = HashSet::new();
             match args.get(2) {
-                Some(name) => install_package(name, prefix, false, &mut processing),
+                Some(name) => install_package(name, prefix, false, true, &mut processing),
                 None => eprintln!("[rad] {} specify the package name", "error:".red()),
             }
         }
@@ -127,7 +127,7 @@ fn main() {
         "-f" | "--force" => {
             let mut processing = HashSet::new();
             match args.get(2) {
-                Some(name) => install_package(name, prefix, true, &mut processing),
+                Some(name) => install_package(name, prefix, true, true, &mut processing),
                 None => eprintln!("[rad] {} specify the package name", "error:".red()),
             }
         }

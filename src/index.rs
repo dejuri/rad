@@ -18,7 +18,7 @@ pub fn refresh_index(repo_url: &str) -> Result<(), String> {
     Ok(())
 }
 
-// Returns category/name for a bare package name if the input already contains /
+// Returns category/name for a bare package name
 pub fn resolve(pkg_name: &str, repo_url: &str) -> Result<String, String> {
     if pkg_name.contains('/') {
         return Ok(pkg_name.to_string());
