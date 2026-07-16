@@ -33,7 +33,7 @@ fn ask_to_install() -> io::Result<()> {
         }
     }
 }
-pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool, processing: &mut HashSet<String>) {
+pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool, going_install: bool, processing: &mut HashSet<String>) {
     let config = load_config();
     let atom = match index::resolve(pkg_name, &config.repo.url) {
         Ok(a) => a,
@@ -69,12 +69,14 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     println!("\n[rad] package: {} ({})\n  \
                 - info: {}\n  \
                 - source: {}", atom.yellow(), pkg.version.yellow(), pkg.description, pkg.source);
-    if is_installed(&pkg.name) {
+    if is_installed(&pkg.name) && going_install {
         println!("  - it is installed on your system\n")
     }
     else { println!() }
 
-    if config.build.ask && askable{let _ = ask_to_install(); }
+    if config.build.ask && askable && going_install{
+        let _ = ask_to_install();
+    }
 
     if processing.contains(&pkg.name) {
         eprintln!(
@@ -90,7 +92,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     for dep in &pkg.depends {
         if !is_installed(dep) {
             println!("[rad] resolving dependency: {}", dep);
-            install_package(dep, prefix, false, false, processing);
+            install_package(dep, prefix, false, false, true, processing);
         }
     }
 
@@ -124,7 +126,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         }
     }
 
-    // Read the OLD manifest before overwriting it, so we can diff later.
+    // Read the old manifest before overwriting it
     let db_manifest = format!("/var/lib/rad/installed/{}", pkg.name);
     let old_files: HashSet<String> = fs::read_to_string(&db_manifest)
         .unwrap_or_default()
@@ -134,19 +136,30 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         .collect();
 
     // Now go register
-    println!("[rad] indexing files for {}...", pkg.name);
-    if let Err(e) = register_package_files(&pkg.name, &dest_dir) {
-        eprintln!("[rad] registration error: {}", e);
+    if going_install {
+        println!("[rad] indexing files for {}...", pkg.name);
+        if let Err(e) = register_package_files(&pkg.name, &dest_dir) {
+            eprintln!("[rad] registration error: {}", e);
+        }
     }
 
     // And now merging
-    if let Err(e) = merge_to_system(&dest_dir) {
-        eprintln!("[rad] {} {}", "merge error:".red(), e);
-        processing.remove(&pkg.name);
-        return;
+    if going_install{
+        if let Err(e) = merge(&dest_dir, "/") {
+            eprintln!("[rad] {} {}", "merge error:".red(), e);
+            processing.remove(&pkg.name);
+            return;
+        }
     }
-
-    // Remove files that were in the old install but are absent in the new one.
+    else{
+        if let Err(e) = merge(&dest_dir, &format!("{}/{}", &config.build.bin_cache_dir, pkg.name)) {
+            eprintln!("[rad] {} {}", "merge error:".red(), e);
+            processing.remove(&pkg.name);
+            return;
+        }
+    }
+    
+    // Remove outdated files, that weren't installed in new version of package
     if force && !old_files.is_empty() {
         cleanup_orphaned_files(&pkg.name, &old_files);
     }
@@ -156,10 +169,12 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     let _ = fs::remove_dir_all(&build_dir);
 
     processing.remove(&pkg.name);
-    println!(
-        "[rad] installation of {} finished successfully",
-        atom.yellow()
-    );
+    if going_install {
+        println!("[rad] installation of {} finished successfully", atom.yellow());
+    }
+    else {
+        println!("[rad] building binary of {} finished successfully", atom.yellow());
+    }
 }
 
 pub fn download_and_extract(pkg: &Package) -> Result<String, String> {
@@ -408,7 +423,7 @@ pub fn build_and_install(
         }
     }
 
-    println!("[rad] build finished! Files are in {}", dest_dir);
+    println!("[rad] build finished");
     Ok(())
 }
 
@@ -457,7 +472,7 @@ pub fn register_package_files(pkg_name: &str, dest_dir: &str) -> std::io::Result
     collect_files(dest_path, dest_path, &mut manifest)
 }
 
-/// Force now works in stack, so if in new build no old compiled files - remove them
+// Force now works in stack
 pub fn cleanup_orphaned_files(pkg_name: &str, old_files: &HashSet<String>) {
     let db_manifest = format!("/var/lib/rad/installed/{}", pkg_name);
     let new_files: HashSet<String> = fs::read_to_string(&db_manifest)
@@ -488,7 +503,7 @@ pub fn cleanup_orphaned_files(pkg_name: &str, old_files: &HashSet<String>) {
                 Ok(_) => {
                     crate::remove::prune_empty_dirs(path);
                 }
-                Err(e) => eprintln!("[rad] could not remove orphan {}: {}", path_str, e),
+                Err(e) => eprintln!("[rad] error: could not remove orphan {}: {}", path_str, e),
             }
         }
     }
@@ -508,11 +523,11 @@ pub fn collect_files(root: &Path, current: &Path, manifest: &mut fs::File) -> st
     Ok(())
 }
 
-pub fn merge_to_system(dest_dir: &str) -> Result<(), String> {
-    println!("[rad] merging files to system...");
+pub fn merge(dest_dir: &str, install_path: &str) -> Result<(), String> {
+    println!("[rad] merging files...");
     let dest_path = Path::new(dest_dir);
-    merge_dir(dest_path, dest_path, Path::new("/")).map_err(|e| format!("merge failed: {}", e))?;
-    println!("[rad] merge done.");
+    merge_dir(dest_path, dest_path, Path::new(install_path)).map_err(|e| format!("merge failed: {}", e))?;
+    println!("[rad] merge done");
     Ok(())
 }
 

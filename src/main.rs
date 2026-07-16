@@ -51,6 +51,7 @@ fn main() {
                     -L, --list              list installed packages\n    \
                     -I, --info              info about rad on your system\n    \
                     -i, --install <pkg>     install a package\n    \
+                    -b, --build <pkg>       build a source installable package without installing\n    \
                     -f, --force <pkg>       force package installation (used to update packages)\n    \
                     -r, --remove  <pkg>     remove a package\n    \
                     -P, --pkg-info <pkg>    info about specific package\n\n  \
@@ -62,6 +63,7 @@ fn main() {
                 config.repo.url
             );
         }
+
         "-I" | "--info" => {
             // Start of info
             println!("[rad] info:\n\
@@ -96,12 +98,14 @@ fn main() {
                         - multilib: {}\n  \
                     BUILD\n    \
                         - makeopts: {}\n    \
-                        - ask: {}\n  \
+                        - ask: {}\n    \
+                        - bin cache dir: {}\n  \
                     REPO\n    \
                         - url: {}",
-                config.arch.multilib, config.build.makeopts, config.build.ask, config.repo.url
+                config.arch.multilib, config.build.makeopts, config.build.ask, config.build.bin_cache_dir, config.repo.url
             );
         }
+
         "-V" | "--version" => println!(
             "rad - {}\n  version: {}",
             "Radrix Automated TOML-packages Handler".bold(),
@@ -111,11 +115,19 @@ fn main() {
         "-i" | "--install" => {
             let mut processing = HashSet::new();
             match args.get(2) {
-                Some(name) => install_package(name, prefix, false, true, &mut processing),
+                Some(name) => install_package(name, prefix, false, true, true, &mut processing),
                 None => eprintln!("[rad] {} specify the package name", "error:".red()),
             }
         }
         
+        "-b" | "--build" => {
+            let mut processing = HashSet::new();
+            match args.get(2) {
+                Some(name) => install_package(name, prefix, true, true, false, &mut processing),
+                None => eprintln!("[rad] {} specify the package name", "error:".red()),
+            }
+        }
+
         "-s" | "--sync" => {
             println!("[rad] updating package index of the repository");
             match rad::index::refresh_index(&config.repo.url) {
@@ -127,7 +139,7 @@ fn main() {
         "-f" | "--force" => {
             let mut processing = HashSet::new();
             match args.get(2) {
-                Some(name) => install_package(name, prefix, true, true, &mut processing),
+                Some(name) => install_package(name, prefix, true, true, true, &mut processing),
                 None => eprintln!("[rad] {} specify the package name", "error:".red()),
             }
         }

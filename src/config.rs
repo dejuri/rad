@@ -22,6 +22,7 @@ pub struct BuildConfig {
     #[serde(default)]
     pub makeopts: u8,
     pub ask: bool,
+    pub bin_cache_dir: String,
 }
 
 #[derive(Deserialize, Default)]

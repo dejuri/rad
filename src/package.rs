@@ -145,7 +145,7 @@ pub fn fetch_package(pkg_name: &str) -> Result<String, String> {
         .status()
         .map_err(|e| format!("wget failed: {}", e))?;
     if !status.success() {
-        return Err(format!("couldn't find {} in current repository.", atom));
+        return Err(format!("couldn't find '{}'", atom));
     }
     Ok(dest)
 }
