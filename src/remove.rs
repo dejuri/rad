@@ -12,7 +12,7 @@ pub fn clear_cache() {
     if Path::new("/tmp/rad").exists() {
         match fs::remove_dir_all("/tmp/rad") {
             Ok(_) => println!("[rad] succesfully removed {}", "/tmp/rad".yellow()),
-            Err(_) => eprintln!("[rad] {} couldn't remove {}:", "error:".red(), "/tmp/rad".yellow()),
+            Err(e) => eprintln!("[rad] {} couldn't remove {}: {}", "error:".red(), "/tmp/rad".yellow(), e),
         }
     }
     else {
@@ -21,7 +21,7 @@ pub fn clear_cache() {
     if Path::new(&config.build.bin_cache_dir).exists() {
         match fs::remove_dir_all(&config.build.bin_cache_dir) {
             Ok(_) => println!("[rad] succesfully removed {}", config.build.bin_cache_dir.yellow()),
-            Err(_) => eprintln!("[rad] {} couldn't remove {}:", "error:".red(), config.build.bin_cache_dir.yellow()),
+            Err(e) => eprintln!("[rad] {} couldn't remove {}: {}", "error:".red(), config.build.bin_cache_dir.yellow(), e),
         }
     }
     else {
