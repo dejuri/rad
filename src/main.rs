@@ -48,10 +48,11 @@ fn main() {
                     -h, --help              print this menu\n    \
                     -V, --version           print rad version\n    \
                     -s, --sync              sync package index of current repository\n    \
+                    -C, --clear-cache       clear rad cache and temporary files\n    \
                     -L, --list              list installed packages\n    \
                     -I, --info              info about rad on your system\n    \
                     -i, --install <pkg>     install a package\n    \
-                    -b, --build <pkg>       build a source installable package without installing\n    \
+                    -b, --build <pkg>       build package source without installing\n    \
                     -f, --force <pkg>       force package installation (used to update packages)\n    \
                     -r, --remove  <pkg>     remove a package\n    \
                     -P, --pkg-info <pkg>    info about specific package\n\n  \
@@ -134,6 +135,11 @@ fn main() {
                 Ok(_) => println!("[rad] package index updated"),
                 Err(e) => eprintln!("[rad] {} {}", "error:".red(), e),
             }
+        }
+
+        "-C" | "--clear-cache" => {
+            println!("[rad] clearing cache and build remains");
+            clear_cache();
         }
 
         "-f" | "--force" => {

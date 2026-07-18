@@ -7,6 +7,28 @@ use std::io;
 
 const DB_PATH: &str = "/var/lib/rad/installed";
 
+pub fn clear_cache() {
+    let config = load_config();
+    if Path::new("/tmp/rad").exists() {
+        match fs::remove_dir_all("/tmp/rad") {
+            Ok(_) => println!("[rad] succesfully removed {}", "/tmp/rad".yellow()),
+            Err(_) => eprintln!("[rad] {} couldn't remove {}:", "error:".red(), "/tmp/rad".yellow()),
+        }
+    }
+    else {
+        println!("[rad] {} doesn't exist, nothing to clear", "/tmp/rad".yellow());
+    }
+    if Path::new(&config.build.bin_cache_dir).exists() {
+        match fs::remove_dir_all(&config.build.bin_cache_dir) {
+            Ok(_) => println!("[rad] succesfully removed {}", config.build.bin_cache_dir.yellow()),
+            Err(_) => eprintln!("[rad] {} couldn't remove {}:", "error:".red(), config.build.bin_cache_dir.yellow()),
+        }
+    }
+    else {
+        println!("[rad] {} doesn't exist, nothing to clear", config.build.bin_cache_dir.yellow());
+    }
+    println!("[rad] cache clearing completed")
+}
 fn ask_to_remove() -> io::Result<()> {
     println!("[rad] Are you sure that you want remove this package? Y/n");
     let mut buffer = String::new();

@@ -6,7 +6,7 @@ multilib = false
 [build]
 makeopts = 4
 ask = true
-binary_cache_dir = "/home/adolf/.rad/bin"
+bin_cache_dir = "/home/adolf/.rad/bin"
 
 [repo]
 url = "https://raw.githubusercontent.com/dejuri/radpkg/main/stable-13"
