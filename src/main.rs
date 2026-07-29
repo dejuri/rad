@@ -6,7 +6,6 @@ use rad::remove::*;
 use std::collections::HashSet;
 use std::process::{Command, Stdio};
 use std::env;
-use std::fs;
 
 // Check for deps
 fn is_there(name: &str) -> Result<(), String> {
@@ -159,25 +158,50 @@ fn main() {
             None => eprintln!("[rad] {} specify the package name", "error:".red()),
         }
 
-        "-L" | "--list" => {
-            let db_path = "/var/lib/rad/installed";
-            match fs::read_dir(db_path) {
-                Ok(entries) => {
-                    let mut names: Vec<String> = entries
-                        .flatten()
-                        .filter_map(|entry| entry.file_name().into_string().ok())
-                        .collect();
-                    names.sort();
+    "-L" | "--list" => {
+        let db_path = "/var/lib/rad/installed";
 
-                    println!("[rad] installed packages:");
-                    for (i, name) in names.iter().enumerate() {
-                        println!("{}. {}", i + 1, name);
+        fn collect_packages(dir: &std::path::Path, prefix: &str, list: &mut Vec<String>) {
+            if let Ok(entries) = std::fs::read_dir(dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if let Some(name) = entry.file_name().to_str() {
+                        if path.is_dir() {
+
+                            let new_prefix = if prefix.is_empty() {
+                                name.to_string()
+                            } else {
+                                format!("{}/{}", prefix, name)
+                            };
+                            collect_packages(&path, &new_prefix, list);
+                        } else if path.is_file() {
+
+                            let package_name = if prefix.is_empty() {
+                                name.to_string()
+                            } else {
+                                format!("{}/{}", prefix, name)
+                            };
+                            list.push(package_name);
+                        }
                     }
-                    println!("[rad] Total packages installed: {}", names.len());
                 }
-                Err(_) => println!("[rad] no packages installed yet."),
             }
         }
+
+        let mut names: Vec<String> = Vec::new();
+        collect_packages(std::path::Path::new(db_path), "", &mut names);
+        names.sort();
+
+        if names.is_empty() {
+            println!("[rad] no packages installed yet.");
+        } else {
+            println!("[rad] installed packages:");
+            for (i, name) in names.iter().enumerate() {
+                println!("{}. {}", i + 1, name);
+            }
+            println!("[rad] Total packages installed: {}", names.len());
+        }
+    }
 
         "-P" | "--pkg-info" => {
             let mut processing = HashSet::new();
