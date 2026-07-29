@@ -29,6 +29,7 @@ pub fn clear_cache() {
     }
     println!("[rad] cache clearing completed")
 }
+
 fn ask_to_remove() -> io::Result<()> {
     println!("[rad] Are you sure that you want remove this package? Y/n");
     let mut buffer = String::new();
@@ -53,24 +54,69 @@ fn ask_to_remove() -> io::Result<()> {
     }
 }
 
-pub fn files_owned_by_others(exclude_pkg: &str) -> std::io::Result<HashSet<String>> {
+pub fn resolve_package_atom(input: &str) -> Option<String> {
+    if input.contains('/') {
+        let full_path = format!("{}/{}", DB_PATH, input);
+        if Path::new(&full_path).exists() {
+            return Some(input.to_string());
+        }
+        return None;
+    }
+
+    let db_dir = Path::new(DB_PATH);
+    if let Ok(categories) = fs::read_dir(db_dir) {
+        for cat_entry in categories.flatten() {
+            if cat_entry.path().is_dir() {
+                let category_name = cat_entry.file_name().into_string().ok()?;
+                let manifest_path = cat_entry.path().join(input);
+                if manifest_path.exists() {
+                    return Some(format!("{}/{}", category_name, input));
+                }
+            }
+        }
+    }
+    None
+}
+
+pub fn files_owned_by_others(exclude_atom: &str) -> std::io::Result<HashSet<String>> {
     let mut shared = HashSet::new();
-    let entries = match fs::read_dir(DB_PATH) {
-        Ok(e) => e,
-        Err(_) => return Ok(shared),
-    };
-    for entry in entries.flatten() {
-        let Ok(name) = entry.file_name().into_string() else {
-            continue;
-        };
-        if name == exclude_pkg {
+    let db_dir = Path::new(DB_PATH);
+    
+    if !db_dir.exists() {
+        return Ok(shared);
+    }
+
+    for cat_entry in fs::read_dir(db_dir)?.flatten() {
+        let cat_path = cat_entry.path();
+        if !cat_path.is_dir() {
             continue;
         }
-        if let Ok(content) = fs::read_to_string(entry.path()) {
-            for line in content.lines() {
-                let line = line.trim();
-                if !line.is_empty() {
-                    shared.insert(line.to_string());
+        let category_name = match cat_path.file_name().and_then(|n| n.to_str()) {
+            Some(n) => n,
+            None => continue,
+        };
+
+        for pkg_entry in fs::read_dir(&cat_path)?.flatten() {
+            let pkg_path = pkg_entry.path();
+            if !pkg_path.is_file() {
+                continue;
+            }
+            let pkg_name = match pkg_path.file_name().and_then(|n| n.to_str()) {
+                Some(n) => n,
+                None => continue,
+            };
+
+            let current_atom = format!("{}/{}", category_name, pkg_name);
+            if current_atom == exclude_atom {
+                continue;
+            }
+
+            if let Ok(content) = fs::read_to_string(&pkg_path) {
+                for line in content.lines() {
+                    let line = line.trim();
+                    if !line.is_empty() {
+                        shared.insert(line.to_string());
+                    }
                 }
             }
         }
@@ -84,7 +130,7 @@ pub fn prune_empty_dirs(path: &Path) {
         None => return,
     };
     loop {
-        // Never remove root or top-level system dirs. This is safety default
+        
         if dir.as_os_str().is_empty() || dir == Path::new("/") {
             break;
         }
@@ -106,23 +152,27 @@ pub fn prune_empty_dirs(path: &Path) {
     }
 }
 
-pub fn remove_package(pkg_name: &str) -> std::io::Result<()> {
-    let manifest_path = format!("{}/{}", DB_PATH, pkg_name);
+pub fn remove_package(input_name: &str) -> std::io::Result<()> {
+    let pkg_atom = match resolve_package_atom(input_name) {
+        Some(atom) => atom,
+        None => {
+            println!("[rad] {} package '{}' is not installed", "error:".red(), input_name);
+            return Ok(());
+        }
+    };
+
+    let manifest_path = format!("{}/{}", DB_PATH, pkg_atom);
+    
     let config = load_config();
-    if !Path::new(&manifest_path).exists() {
-        println!("[rad] {} package '{}' is not installed", "error:".red(), pkg_name);
-        return Ok(());
-    }
 
     let content = fs::read_to_string(&manifest_path)?;
 
-    println!("\n[rad] {} is installed, going to remove files:\n{}", pkg_name, content.yellow());
-    if config.build.ask {let _ = ask_to_remove(); }
+    println!("\n[rad] {} is installed, going to remove files:\n{}", pkg_atom, content.yellow());
+    if config.build.ask { let _ = ask_to_remove(); }
 
-    println!("[rad] removing package: {}", pkg_name);
+    println!("[rad] removing package: {}", pkg_atom);
 
-    // If files are owned by other installed packages don't delete
-    let shared = files_owned_by_others(pkg_name)?;
+    let shared = files_owned_by_others(&pkg_atom)?;
 
     let mut skipped = 0;
     let mut removed = 0;
@@ -150,12 +200,19 @@ pub fn remove_package(pkg_name: &str) -> std::io::Result<()> {
                     removed += 1;
                     prune_empty_dirs(path);
                 }
-                Err(e) => eprintln!("[rad] could not remove {}: {}", line, e),
+                Err(e) => eprintln!("[rad] {} could not remove {}: {}", "error:".red(), line, e),
             }
         }
     }
 
     fs::remove_file(&manifest_path)?;
+
+    let meta_path = format!("/var/lib/rad/meta/{}.toml", pkg_atom);
+    if Path::new(&meta_path).exists() {
+        if let Err(e) = fs::remove_file(&meta_path) {
+            eprintln!("[rad] {} could not remove metadata file: {}", "warning:".purple(), e);
+        }
+    }
 
     if skipped > 0 {
         println!(
@@ -166,7 +223,7 @@ pub fn remove_package(pkg_name: &str) -> std::io::Result<()> {
 
     println!(
         "[rad] package {} successfully cleaned from your fantastic system ({} files removed)",
-        pkg_name, removed
+        pkg_atom, removed
     );
     Ok(())
 }

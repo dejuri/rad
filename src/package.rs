@@ -6,6 +6,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+use crate::meta::read_meta;
 
 #[derive(Debug)]
 pub struct Package {
@@ -223,6 +224,9 @@ pub fn package_info(pkg_name: &str, processing: &mut HashSet<String>) {
             return;
         }
     };
+
+    let meta = read_meta(&atom);
+
     let rad_path = match fetch_package(pkg_name) {
         Ok(p) => p,
         Err(e) => {
@@ -231,6 +235,7 @@ pub fn package_info(pkg_name: &str, processing: &mut HashSet<String>) {
             return;
         }
     };
+
     let pkg = match parse_package(&rad_path) {
         Ok(p) => p,
         Err(e) => {
@@ -239,11 +244,26 @@ pub fn package_info(pkg_name: &str, processing: &mut HashSet<String>) {
             return;
         }
     };
+
+    let installed_version_msg = if let Some(m) = meta {
+        let meta_file_path = format!("/var/lib/rad/meta/{}.toml", atom);
+            if Path::new(&meta_file_path).exists() {
+                if m.version == pkg.version {
+                    format!("\n  Version of installed package: {}", m.version.green())
+                } else {
+                    format!("\n  Version of installed package: {}", m.version.red())
+                }
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+    };
     println!(
         "[rad] Info about {}{}:\n  \
         {}, \n  \
         Source of the package: {}, \n  \
-        Version of the package: {}",
+        Version of the package: {}{}",
         atom.yellow(),
         if Path::new(&format!("{}.toml", pkg_name)).exists() {
             " (local)"
@@ -253,6 +273,7 @@ pub fn package_info(pkg_name: &str, processing: &mut HashSet<String>) {
         },
         pkg.description,
         pkg.source,
-        pkg.version
+        pkg.version,
+        installed_version_msg,
     );
 }

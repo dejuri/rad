@@ -53,7 +53,7 @@ fn main() {
                     -I, --info              info about rad on your system\n    \
                     -i, --install <pkg>     install a package\n    \
                     -b, --build <pkg>       build package source without installing\n    \
-                    -f, --force <pkg>       force package installation (used to update packages)\n    \
+                    -f, --force <pkg>       force package installation\n    \
                     -r, --remove  <pkg>     remove a package\n    \
                     -P, --pkg-info <pkg>    info about specific package\n\n  \
                 Packages are searched:\n    \

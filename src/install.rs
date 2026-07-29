@@ -9,6 +9,7 @@ use std::os::unix::fs as unix_fs;
 use std::path::Path;
 use std::process::Command;
 use std::io;
+use crate::meta::{write_meta, find_dependents};
 
 fn ask_to_install() -> io::Result<()> {
     println!("[rad] Are you sure that you want install this package? Y/n");
@@ -35,6 +36,7 @@ fn ask_to_install() -> io::Result<()> {
 }
 pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool, going_install: bool, processing: &mut HashSet<String>) {
     let config = load_config();
+
     let atom = match index::resolve(pkg_name, &config.repo.url) {
         Ok(a) => a,
         Err(e) => {
@@ -43,6 +45,9 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
             return;
         }
     };
+
+    let category = atom.rsplit_once('/').map(|(c, _)| c).unwrap_or("");
+
     let rad_path = match fetch_package(pkg_name) {
         Ok(p) => p,
         Err(e) => {
@@ -59,9 +64,15 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         }
     };
 
-    // Don't build if installed
-    if is_installed(&pkg.name) && !force {
-        println!("[rad] {} is already installed, skipping", atom.yellow());
+    // Skip if the same version is installed
+    let installed_meta = crate::meta::read_meta(&atom);
+    let needs_upgrade = match &installed_meta {
+        Some(m) => m.version != pkg.version,
+        None => false,
+    };
+
+    if installed_meta.is_some() && !needs_upgrade && !force {
+        println!("[rad] {} is already up to date ({})", atom.yellow(), pkg.version);
         return;
     }
 
@@ -69,7 +80,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     println!("\n[rad] package: {} ({})\n  \
                 - info: {}\n  \
                 - source: {}", atom.yellow(), pkg.version.yellow(), pkg.description, pkg.source);
-    if is_installed(&pkg.name) && going_install {
+    if is_installed(&atom) && going_install {
         println!("  - it is installed on your system\n")
     }
     else { println!() }
@@ -127,7 +138,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     }
 
     // Read the old manifest before overwriting it
-    let db_manifest = format!("/var/lib/rad/installed/{}", pkg.name);
+    let db_manifest = format!("/var/lib/rad/installed/{}", atom);
     let old_files: HashSet<String> = fs::read_to_string(&db_manifest)
         .unwrap_or_default()
         .lines()
@@ -135,16 +146,19 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         .filter(|l| !l.is_empty())
         .collect();
 
+        
     // Now go register
     if going_install {
-        println!("[rad] indexing files for {}...", pkg.name);
-        if let Err(e) = register_package_files(&pkg.name, &dest_dir) {
+        println!("[rad] registering files for {}...", pkg.name);
+        if let Err(e) = register_package_files(&atom, &dest_dir) {
             eprintln!("[rad] registration error: {}", e);
         }
-    }
-
-    // And now merging
-    if going_install{
+        println!("[rad] writing meta for {}...", pkg.name);
+        if let Err(e) = write_meta(&atom, &pkg.version, category, &pkg.depends) {
+            eprintln!("[rad] error writing meta: {}", e);
+        }
+    
+        // And now merging
         if let Err(e) = merge(&dest_dir, "/") {
             eprintln!("[rad] {} {}", "merge error:".red(), e);
             processing.remove(&pkg.name);
@@ -160,8 +174,8 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     }
     
     // Remove outdated files, that weren't installed in new version of package
-    if force && !old_files.is_empty() {
-        cleanup_orphaned_files(&pkg.name, &old_files);
+    if (force || needs_upgrade) && !old_files.is_empty() {
+        cleanup_orphaned_files(&atom, &old_files);
     }
 
     let _ = fs::remove_dir_all(&dest_dir);
@@ -174,6 +188,13 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     }
     else {
         println!("[rad] building binary of {} finished successfully", atom.yellow());
+    }
+
+    if needs_upgrade && going_install {
+        for dependent in find_dependents(&pkg.name) {
+            println!("[rad] {} depends on updated {}, rebuilding", dependent, atom);
+            install_package(&dependent, prefix, true, false, true, processing);
+        }
     }
 }
 
@@ -464,10 +485,12 @@ pub fn ninja_install_cmd(build_dir: &str, dest_dir: &str) -> Command {
     c
 }
 
-pub fn register_package_files(pkg_name: &str, dest_dir: &str) -> std::io::Result<()> {
-    let db_path = "/var/lib/rad/installed";
-    fs::create_dir_all(db_path)?;
-    let mut manifest = fs::File::create(format!("{}/{}", db_path, pkg_name))?;
+pub fn register_package_files(atom: &str, dest_dir: &str) -> std::io::Result<()> {
+    let manifest_path = format!("/var/lib/rad/installed/{}", atom);
+    if let Some(parent) = Path::new(&manifest_path).parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut manifest = fs::File::create(&manifest_path)?;
     let dest_path = Path::new(dest_dir);
     collect_files(dest_path, dest_path, &mut manifest)
 }
