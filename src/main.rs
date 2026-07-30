@@ -65,6 +65,7 @@ fn main() {
         }
 
         "-I" | "--info" => {
+            
             // Start of info
             println!("[rad] info:\n\
             DEPENDENCIES");
