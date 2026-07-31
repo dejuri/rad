@@ -95,23 +95,35 @@ depends = ""
 configure_args = ""
 ```
 
-Understand? And now if you created own packages repository, you can use them already without publishing somewhere and creating repository. Because you can install local packages, just change directory to where your packages are, and do 
+Understand? And now if you created own packages repository, you can use them already without publishing somewhere and creating repository. This means you can just use local packages. How? Just specify full path of the package, or relative, how is comfortable (DON'T TYPE .toml IN THE END, JUST PACKAGE NAME!)
 ```sh
-rad -P <pkg>
+rad -P /home/thyripgn/radpkg/stable-13/<package>
 ```
-this will give you info for your package, if you see this package and rad give information about local package, you can use it. Try to install it (as root)
+Or like that
 ```sh
-rad -i <pkg>
+rad -P ./<package>
+```
+But if the basic repo is enabled in config, you already can try do as root
+```sh
+rad --sync
+```
+Then the package index will be downloaded and used. Try to check info about some package
+```sh
+rad -P <atom>
+```
+This will give you info for your package, if you see this package and rad give information about local package, you can use it. Try to install it (as root)
+```sh
+rad -i <atom>
 ```
 That's all, if no errors, you've installed your package. Now rad remember the installed files of package by the register, you can view
 ```sh
-cat /var/lib/rad/installed/<pkg>
+cat /var/lib/rad/installed/<atom>
 ```
-you will get the list of installed files. It also supports symlinks, don't worry about it.
+You will get the list of installed files. It also supports symlinks, don't worry about it.
 
-Now, if needed, remove the package (as root)
+Rad, like other basic package managers, can remove installed package (as root)
 ```sh
-rad -r <pkg>
+rad -r <atom>
 ```
 ## Issues
 If you have an issue or some different bugs, create a [new issue](https://github.com/dejuri/radpkg/issues/new) please and describe what happened and i will see it
