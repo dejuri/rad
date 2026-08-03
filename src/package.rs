@@ -249,9 +249,9 @@ pub fn package_info(pkg_name: &str, processing: &mut HashSet<String>) {
         let meta_file_path = format!("/var/lib/rad/meta/{}.toml", atom);
             if Path::new(&meta_file_path).exists() {
                 if m.version == pkg.version {
-                    format!("\n  Version of installed package: {}", m.version.green())
+                    format!(" = {}", m.version.green())
                 } else {
-                    format!("\n  Version of installed package: {}", m.version.red())
+                    format!(" > {}", m.version.red())
                 }
             } else {
                 String::new()

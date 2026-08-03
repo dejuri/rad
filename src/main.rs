@@ -14,7 +14,7 @@ fn is_there(name: &str) -> Result<(), String> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
-        .map_err(|_| format!("{}", "install which firstly".blue()))?;
+        .map_err(|_| format!("{}", "install which first".blue()))?;
 
     if status.success() {
         Ok(())
@@ -57,7 +57,7 @@ fn main() {
                     -P, --pkg-info <pkg>    info about specific package\n\n  \
                 Packages are searched:\n    \
                     1. Locally:   ./<pkg>.toml\n    \
-                    2. Remote:    {}/<pkg>.toml",
+                    2. Remote:    {}/<category>/<pkg>.toml",
                 "Radrix Automated TOML-packages Handler".bold(),
                 version.yellow(),
                 config.repo.url
