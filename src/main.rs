@@ -130,10 +130,19 @@ fn main() {
         }
 
         "-s" | "--sync" => {
-            println!("[rad] updating package index of the repository");
-            match rad::index::refresh_index(&config.repo.url) {
-                Ok(_) => println!("[rad] package index updated"),
-                Err(e) => eprintln!("[rad] {} {}", "error:".red(), e),
+            println!("[rad] updating package index");
+            let mut all_sources = vec![config.repo.url.clone()];
+            all_sources.extend(config.repo.overlays.iter().cloned());
+
+            for src in all_sources {
+                if src.starts_with("http://") || src.starts_with("https://") {
+                    match rad::index::refresh_overlay_index(&src) {
+                        Ok(_) => println!("[rad] index updated: {}", src),
+                        Err(e) => eprintln!("[rad] {} {} ({})", "error:".red(), e, src),
+                    }
+                } else {
+                    println!("[rad] {} is local, nothing to sync", src);
+                }
             }
         }
 

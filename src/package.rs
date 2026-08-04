@@ -129,24 +129,29 @@ struct RawToml {
 pub fn fetch_package(pkg_name: &str) -> Result<String, String> {
     let config = load_config();
 
-    // if package can be local
     let local_path = format!("{}.toml", pkg_name);
     if Path::new(&local_path).exists() {
         return Ok(local_path);
     }
 
-    let atom = index::resolve(pkg_name, &config.repo.url)?;
-    let url = format!("{}/{}.toml", config.repo.url, atom);
+    let (atom, source) = index::resolve_with_source(pkg_name, &config)?;
     let dest = format!("/tmp/rad/tomls/{}.toml", atom);
     if let Some(parent) = Path::new(&dest).parent() {
         fs::create_dir_all(parent).unwrap();
     }
-    let status = Command::new("wget")
-        .args(["-q", "-O", &dest, &url])
-        .status()
-        .map_err(|e| format!("wget failed: {}", e))?;
-    if !status.success() {
-        return Err(format!("couldn't find '{}'", atom));
+
+    if source.is_local {
+        let src_path = format!("{}/{}.toml", source.base, atom);
+        fs::copy(&src_path, &dest).map_err(|e| format!("couldn't find '{}' in {}: {}", atom, source.base, e))?;
+    } else {
+        let url = format!("{}/{}.toml", source.base, atom);
+        let status = Command::new("wget")
+            .args(["-q", "-O", &dest, &url])
+            .status()
+            .map_err(|e| format!("wget failed: {}", e))?;
+        if !status.success() {
+            return Err(format!("couldn't find '{}' in {}", atom, source.base));
+        }
     }
     Ok(dest)
 }
@@ -216,8 +221,9 @@ pub fn parse_package(path: &str) -> Result<Package, String> {
 pub fn package_info(pkg_name: &str, processing: &mut HashSet<String>) {
     processing.insert(pkg_name.to_string());
     let config = load_config();
-    let atom = match index::resolve(pkg_name, &config.repo.url) {
-        Ok(a) => a,
+    
+    let (atom, source) = match index::resolve_with_source(pkg_name, &config) {
+        Ok(res) => res,
         Err(e) => {
             eprintln!("[rad] {} {}", "error:".red(), e);
             processing.remove(pkg_name);
@@ -247,31 +253,36 @@ pub fn package_info(pkg_name: &str, processing: &mut HashSet<String>) {
 
     let installed_version_msg = if let Some(m) = meta {
         let meta_file_path = format!("/var/lib/rad/meta/{}.toml", atom);
-            if Path::new(&meta_file_path).exists() {
-                if m.version == pkg.version {
-                    format!(" = {}", m.version.green())
-                } else {
-                    format!(" > {}", m.version.red())
-                }
+        if Path::new(&meta_file_path).exists() {
+            if m.version == pkg.version {
+                format!(" = {}", m.version.green())
             } else {
-                String::new()
+                format!(" > {}", m.version.red())
             }
         } else {
             String::new()
-    };
-    println!(
-        "[rad] Info about {}{}:\n  \
-        {}, \n  \
-        Source of the package: {}, \n  \
-        Version of the package: {}{}",
-        atom.yellow(),
-        if Path::new(&format!("{}.toml", pkg_name)).exists() {
-            " (local)"
         }
-        else {
-            ""
-        },
+    } else {
+        String::new()
+    };
+
+    let source_desc = if source.is_local {
+        format!("local overlay -> {}", source.base.yellow())
+    } else if source.base == config.repo.url {
+        format!("main repository -> {}", source.base.yellow())
+    } else {
+        format!("remote overlay -> {}", source.base.yellow())
+    };
+
+    println!(
+        "[rad] Info about {}:\n  \
+        - Description: {}\n  \
+        - Package origin: {}\n  \
+        - Package source: {}\n  \
+        - Version: {}{}",
+        atom.yellow(),
         pkg.description,
+        source_desc,
         pkg.source,
         pkg.version,
         installed_version_msg,

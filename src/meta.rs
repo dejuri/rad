@@ -44,6 +44,7 @@ fn walk_meta_dir(dir: &Path) -> std::io::Result<Vec<String>> {
                 .unwrap()
                 .with_extension("")
                 .to_string_lossy()
+                .trim_start_matches('/')
                 .to_string();
             result.push(atom);
         }

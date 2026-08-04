@@ -37,8 +37,8 @@ fn ask_to_install() -> io::Result<()> {
 pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool, going_install: bool, processing: &mut HashSet<String>) {
     let config = load_config();
 
-    let atom = match index::resolve(pkg_name, &config.repo.url) {
-        Ok(a) => a,
+    let (atom, source) = match index::resolve_with_source(pkg_name, &config) {
+        Ok(res) => res,
         Err(e) => {
             eprintln!("[rad] {} {}", "error:".red(), e);
             processing.remove(pkg_name);
@@ -47,6 +47,14 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     };
 
     let category = atom.rsplit_once('/').map(|(c, _)| c).unwrap_or("");
+
+    let origin_str = if source.is_local {
+        format!("local overlay ({})", source.base)
+    } else if source.base == config.repo.url {
+        format!("main repository")
+    } else {
+        format!("remote overlay ({})", source.base)
+    };
 
     let rad_path = match fetch_package(pkg_name) {
         Ok(p) => p,
@@ -78,8 +86,14 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
 
     // Package information
     println!("\n[rad] package: {} ({})\n  \
-                - info: {}\n  \
-                - source: {}", atom.yellow(), pkg.version.yellow(), pkg.description, pkg.source);
+                    - info: {}\n  \
+                    - origin: {}\n  \
+                    - source archive: {}", 
+                    atom.yellow(), 
+                    pkg.version.yellow(), 
+                    pkg.description, 
+                    origin_str.cyan(), 
+                    pkg.source);
     if is_installed(&atom) && going_install {
         println!("  - it is installed on your system\n")
     }
@@ -101,7 +115,10 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     processing.insert(pkg.name.clone());
 
     for dep in &pkg.depends {
-        if !is_installed(dep) {
+        let dep_atom = index::resolve_with_source(dep, &config)
+            .map(|(a, _)| a)
+            .unwrap_or_else(|_| dep.clone());
+        if !is_installed(&dep_atom) {
             println!("[rad] resolving dependency: {}", dep);
             install_package(dep, prefix, false, false, true, processing);
         }

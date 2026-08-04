@@ -29,6 +29,8 @@ pub struct BuildConfig {
 pub struct RepoConfig {
     #[serde(default)]
     pub url: String,
+    #[serde(default)]
+    pub overlays: Vec<String>,
 }
 
 pub fn load_config() -> Config {
