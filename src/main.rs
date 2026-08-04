@@ -29,6 +29,11 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let version = option_env!("CARGO_PKG_VERSION").unwrap_or("unknown");
     let prefix = "/usr";
+    let overlays_formatted = config.repo.overlays
+        .iter()
+        .map(|s| format!("\n      {}", s.yellow()))
+        .collect::<String>();
+
     let deps = vec!["cargo", "make", "cmake", "meson", "ninja", "pip", "tar", "unzip", "git", "wget", "sh"];
     if args.len() < 2 {
         eprintln!(
@@ -55,12 +60,10 @@ fn main() {
                     -f, --force <pkg>       force package installation\n    \
                     -r, --remove  <pkg>     remove a package\n    \
                     -P, --pkg-info <pkg>    info about specific package\n\n  \
-                Packages are searched:\n    \
-                    1. Locally:   ./<pkg>.toml\n    \
-                    2. Remote:    {}/<category>/<pkg>.toml",
-                "Radrix Automated TOML-packages Handler".bold(),
-                version.yellow(),
-                config.repo.url
+                Packages are searched in main repository and overlays\n    \
+                Main repository: {}\n    \
+                Overlays: {}",
+                "Radrix Automated TOML-packages Handler".bold(), version.yellow(), config.repo.url.yellow(), overlays_formatted.yellow()
             );
         }
 
@@ -102,8 +105,9 @@ fn main() {
                         - ask: {}\n    \
                         - bin cache dir: {}\n  \
                     REPO\n    \
-                        - url: {}",
-                config.arch.multilib, config.build.makeopts, config.build.ask, config.build.bin_cache_dir, config.repo.url
+                        - url: {}\n    \
+                        - overlays: {:?}",
+                config.arch.multilib, config.build.makeopts, config.build.ask, config.build.bin_cache_dir, config.repo.url, config.repo.overlays
             );
         }
 
