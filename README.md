@@ -92,7 +92,7 @@ source = "https://ftp.gnu.org/gnu/hello/hello-2.12.1.tar.gz"
 system = "autotools"
 multilib_support = false
 depends = ""
-configure_args = ""
+configure_args = [ "" ]
 ```
 
 Understand? And now if you created own packages repository, you can use them already without publishing somewhere and creating repository. This means you can just use local packages. How? Just specify full path of the package, or relative, how is comfortable (don't add .toml to the end, just name of the package!)
@@ -103,7 +103,27 @@ Or like that
 ```sh
 rad -P ./<package>
 ```
-But if the basic repo is enabled in config, you already can try do as root
+But those solutions for overlay is not the coolest you can do actually. In `/etc/rad/config.toml` you can add `overlays` massive in `[repo]` section. Just look:
+```toml
+# repo section of config.toml
+[repo]
+url = "https://raw.githubusercontent.com/dejuri/radpkg/main/stable-13"
+overlays = [
+	"/home/adolf/radpkg/overlay",
+	"https://raw.githubusercontent.com/adolfisveryavgn/radpkg/main"
+]
+```
+You can add local or hosted overlays! This is pretty nice. But don't forget, it must contain `packages.index` in it. Use `gen-index.sh` to generate it fast. Here is it
+```sh
+#!/bin/sh
+# this is gen-index.sh for generating packages index
+find . -mindepth 2 -maxdepth 2 -name '*.toml' \
+  | sed 's|^\./||; s|\.toml$||' \
+  | sort > packages.index
+```
+So you can do overlay very easily. Also if you did it you can tell me, maybe i should correct something :)
+
+But if you don't want overlay, if the basic repo is enabled in config, you already can use it. Try do (as root)
 ```sh
 rad --sync
 ```
