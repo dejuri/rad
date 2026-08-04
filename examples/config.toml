@@ -10,5 +10,9 @@ bin_cache_dir = "/home/adolf/.rad/bin"
 
 [repo]
 url = "https://raw.githubusercontent.com/dejuri/radpkg/main/stable-13"
+overlays = [
+	"/home/adolf/radpkg/overlay",
+	"https://raw.githubusercontent.com/adolfisveryavgn/radpkg/main"
+]
 
 # End
