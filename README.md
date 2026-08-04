@@ -95,15 +95,7 @@ depends = ""
 configure_args = [ "" ]
 ```
 
-Understand? And now if you created own packages repository, you can use them already without publishing somewhere and creating repository. This means you can just use local packages. How? Just specify full path of the package, or relative, how is comfortable (don't add .toml to the end, just name of the package!)
-```sh
-rad -P /home/thyripgn/radpkg/stable-13/<package>
-```
-Or like that
-```sh
-rad -P ./<package>
-```
-But those solutions for overlay is not the coolest you can do actually. In `/etc/rad/config.toml` you can add `overlays` massive in `[repo]` section. Just look:
+Understand? And now if you created own packages repository, you can use them already without publishing somewhere and creating repository. This means you can just use local packages. How? In `/etc/rad/config.toml` you can add `overlays` massive in `[repo]` section. Just look:
 ```toml
 # repo section of config.toml
 [repo]
