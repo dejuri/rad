@@ -23,6 +23,23 @@ fn is_there(name: &str) -> Result<(), String> {
     }
 }
 
+// Parsing arguments
+fn parse_short_flags(raw: &str) -> Option<(char, bool)> {
+    if !raw.starts_with('-') || raw.starts_with("--") {
+        return None;
+    }
+    let chars: Vec<char> = raw.chars().skip(1).collect();
+    if chars.is_empty() {
+        return None;
+    }
+    let local = chars.contains(&'l');
+    let action: Vec<char> = chars.into_iter().filter(|&c| c != 'l').collect();
+    if action.len() != 1 {
+        return None;
+    }
+    Some((action[0], local))
+}
+
 // Main
 fn main() {
     let config = load_config();
@@ -43,12 +60,14 @@ fn main() {
         return;
     }
 
-    match args[1].as_str() {
-        "-h" | "--help" => {
+    match (args[1].as_str(), parse_short_flags(args[1].as_str())) {
+
+        // Help
+        ("-h", _) | ("--help", _) => {
             println!(
                 "{} v{}\n\n  \
                 Usage: rad [command]\n\n  \
-                Commands:\n    \
+                Arguments:\n    \
                     -h, --help              print this menu\n    \
                     -V, --version           print rad version\n    \
                     -s, --sync              sync package index of current repository\n    \
@@ -60,14 +79,16 @@ fn main() {
                     -f, --force <pkg>       force package installation\n    \
                     -r, --remove  <pkg>     remove a package\n    \
                     -P, --pkg-info <pkg>    info about specific package\n\n  \
+                Options:\n    \
+                    -l <path>               use local package (with -i, -f, -b and -P)\n\n  \
                 Packages are searched in main repository and overlays\n    \
                 Main repository: {}\n    \
                 Overlays: {}",
-                "Radrix Automated TOML-packages Handler".bold(), version.yellow(), config.repo.url.yellow(), overlays_formatted.yellow()
+                "Radian Automated TOML-packages Handler".bold(), version.yellow(), config.repo.url.yellow(), overlays_formatted.yellow()
             );
         }
 
-        "-I" | "--info" => {
+        ("-I", _) | ("--info", _) => {
             
             // Start of info
             println!("[rad] info:\n\
@@ -111,29 +132,45 @@ fn main() {
             );
         }
 
-        "-V" | "--version" => println!(
+        ("-V", _) | ("--version", _) => println!(
             "rad - {}\n  version: {}",
-            "Radrix Automated TOML-packages Handler".bold(),
+            "Radian Automated TOML-packages Handler".bold(),
             version.yellow()
         ),
 
-        "-i" | "--install" => {
+        (_, Some(('i', local))) => {
             let mut processing = HashSet::new();
             match args.get(2) {
-                Some(name) => install_package(name, prefix, false, true, true, &mut processing),
-                None => eprintln!("[rad] {} specify the package name", "error:".red()),
-            }
-        }
-        
-        "-b" | "--build" => {
-            let mut processing = HashSet::new();
-            match args.get(2) {
-                Some(name) => install_package(name, prefix, true, true, false, &mut processing),
+                Some(name) => install_package(name, prefix, false, true, true, local, &mut processing),
                 None => eprintln!("[rad] {} specify the package name", "error:".red()),
             }
         }
 
-        "-s" | "--sync" => {
+        (_, Some(('f', local))) => {
+            let mut processing = HashSet::new();
+            match args.get(2) {
+                Some(name) => install_package(name, prefix, true, true, true, local, &mut processing),
+                None => eprintln!("[rad] {} specify the package name", "error:".red()),
+            }
+        }
+
+        (_, Some(('b', local))) => {
+            let mut processing = HashSet::new();
+            match args.get(2) {
+                Some(name) => install_package(name, prefix, true, true, false, local, &mut processing),
+                None => eprintln!("[rad] {} specify the package name", "error:".red()),
+            }
+        }
+
+        (_, Some(('P', local))) => {
+            let mut processing = HashSet::new();
+            match args.get(2) {
+                Some(name) => package_info(name, local, &mut processing),
+                None => eprintln!("[rad] {} specify the package name", "error:".red()),
+            }
+        }
+
+        ("-s", _) | ("--sync", _) => {
             println!("[rad] updating package index");
             let mut all_sources = vec![config.repo.url.clone()];
             all_sources.extend(config.repo.overlays.iter().cloned());
@@ -150,20 +187,12 @@ fn main() {
             }
         }
 
-        "-C" | "--clear-cache" => {
+        ("-C", _) | ("--clear-cache", _) => {
             println!("[rad] clearing cache and build remains");
             clear_cache();
         }
 
-        "-f" | "--force" => {
-            let mut processing = HashSet::new();
-            match args.get(2) {
-                Some(name) => install_package(name, prefix, true, true, true, &mut processing),
-                None => eprintln!("[rad] {} specify the package name", "error:".red()),
-            }
-        }
-
-        "-r" | "--remove" => match args.get(2) {
+        ("-r", _) | ("--remove", _) => match args.get(2) {
             Some(name) => {
                 if let Err(e) = remove_package(name) {
                     eprintln!("[rad] {} {}", "removal error:".red(), e);
@@ -172,62 +201,54 @@ fn main() {
             None => eprintln!("[rad] {} specify the package name", "error:".red()),
         }
 
-    "-L" | "--list" => {
-        let db_path = "/var/lib/rad/installed";
+        ("-L", _) | ("--list", _) => {
+            let db_path = "/var/lib/rad/installed";
 
-        fn collect_packages(dir: &std::path::Path, prefix: &str, list: &mut Vec<String>) {
-            if let Ok(entries) = std::fs::read_dir(dir) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if let Some(name) = entry.file_name().to_str() {
-                        if path.is_dir() {
+            fn collect_packages(dir: &std::path::Path, prefix: &str, list: &mut Vec<String>) {
+                if let Ok(entries) = std::fs::read_dir(dir) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if let Some(name) = entry.file_name().to_str() {
+                            if path.is_dir() {
 
-                            let new_prefix = if prefix.is_empty() {
-                                name.to_string()
-                            } else {
-                                format!("{}/{}", prefix, name)
-                            };
-                            collect_packages(&path, &new_prefix, list);
-                        } else if path.is_file() {
+                                let new_prefix = if prefix.is_empty() {
+                                    name.to_string()
+                                } else {
+                                    format!("{}/{}", prefix, name)
+                                };
+                                collect_packages(&path, &new_prefix, list);
+                            } else if path.is_file() {
 
-                            let package_name = if prefix.is_empty() {
-                                name.to_string()
-                            } else {
-                                format!("{}/{}", prefix, name)
-                            };
-                            list.push(package_name);
+                                let package_name = if prefix.is_empty() {
+                                    name.to_string()
+                                } else {
+                                    format!("{}/{}", prefix, name)
+                                };
+                                list.push(package_name);
+                            }
                         }
                     }
                 }
             }
-        }
 
-        let mut names: Vec<String> = Vec::new();
-        collect_packages(std::path::Path::new(db_path), "", &mut names);
-        names.sort();
+            let mut names: Vec<String> = Vec::new();
+            collect_packages(std::path::Path::new(db_path), "", &mut names);
+            names.sort();
 
-        if names.is_empty() {
-            println!("[rad] no packages installed yet.");
-        } else {
-            println!("[rad] installed packages:");
-            for (i, name) in names.iter().enumerate() {
-                println!("{}. {}", i + 1, name);
-            }
-            println!("[rad] Total packages installed: {}", names.len());
-        }
-    }
-
-        "-P" | "--pkg-info" => {
-            let mut processing = HashSet::new();
-            match args.get(2) {
-                Some(name) => package_info(name, &mut processing),
-                None => eprintln!("[rad] {} specify the package name", "error:".red()),
+            if names.is_empty() {
+                println!("[rad] no packages installed yet.");
+            } else {
+                println!("[rad] installed packages:");
+                for (i, name) in names.iter().enumerate() {
+                    println!("{}. {}", i + 1, name);
+                }
+                println!("[rad] Total packages installed: {}", names.len());
             }
         }
 
-        "--hello" => println!("Hi there, bro"),
+        ("--hello", _) => println!("Hi there, bro"),
 
-        other => eprintln!(
+        (other, _) => eprintln!(
             "[rad] {} unknown argument '{}', try -h or --help",
             "error:".red(),
             other

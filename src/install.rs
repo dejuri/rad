@@ -34,33 +34,23 @@ fn ask_to_install() -> io::Result<()> {
         }
     }
 }
-pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool, going_install: bool, processing: &mut HashSet<String>) {
+pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool, going_install: bool, local: bool, processing: &mut HashSet<String>) {
     let config = load_config();
 
-    let (atom, source) = match index::resolve_with_source(pkg_name, &config) {
-        Ok(res) => res,
-        Err(e) => {
-            eprintln!("[rad] {} {}", "error:".red(), e);
-            processing.remove(pkg_name);
+    let rad_path = if local {
+        let path = if pkg_name.ends_with(".toml") { pkg_name.to_string() } else { format!("{}.toml", pkg_name) };
+        if !Path::new(&path).exists() {
+            eprintln!("[rad] {} local package file not found: {}", "error:".red(), path);
             return;
         }
-    };
-
-    let category = atom.rsplit_once('/').map(|(c, _)| c).unwrap_or("");
-
-    let origin_str = if source.is_local {
-        format!("local overlay ({})", source.base)
-    } else if source.base == config.repo.url {
-        format!("main repository")
+        path
     } else {
-        format!("remote overlay ({})", source.base)
-    };
-
-    let rad_path = match fetch_package(pkg_name) {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("[rad] {} {}", "error:".red(), e);
-            return;
+        match fetch_package(pkg_name) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("[rad] {} {}", "error:".red(), e);
+                return;
+            }
         }
     };
 
@@ -71,6 +61,34 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
             return;
         }
     };
+
+    let (atom, origin_str) = if local {
+        (
+            format!("local/{}", pkg.name),
+            format!("local file ({})", rad_path),
+        )
+    } else {
+        match index::resolve_with_source(pkg_name, &config) {
+            Ok((a, source)) => {
+                let desc = if source.is_local {
+                    format!("local overlay ({})", source.base)
+                } else if source.base == config.repo.url {
+                    "main repository".to_string()
+                } else {
+                    format!("remote overlay ({})", source.base)
+                };
+                (a, desc)
+            }
+            Err(e) => {
+                eprintln!("[rad] {} {}", "error:".red(), e);
+                processing.remove(pkg_name);
+                return;
+            }
+        }
+    };
+
+
+    let category = atom.rsplit_once('/').map(|(c, _)| c).unwrap_or("");
 
     // Skip if the same version is installed
     let installed_meta = crate::meta::read_meta(&atom);
@@ -85,17 +103,17 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     }
 
     // Package information
-    println!("\n[rad] package: {} ({})\n  \
-                    - info: {}\n  \
-                    - origin: {}\n  \
-                    - source archive: {}", 
+    println!("[rad] Building package {} ({})\n  \
+                    - Description: {}\n  \
+                    - Package origin: {}\n  \
+                    - Package source: {}", 
                     atom.yellow(), 
                     pkg.version.yellow(), 
                     pkg.description, 
-                    origin_str.cyan(), 
+                    origin_str, 
                     pkg.source);
     if is_installed(&atom) && going_install {
-        println!("  - it is installed on your system\n")
+        println!("  - Installed version: {}", installed_meta.unwrap().version)
     }
     else { println!() }
 
@@ -120,7 +138,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
             .unwrap_or_else(|_| dep.clone());
         if !is_installed(&dep_atom) {
             println!("[rad] resolving dependency: {}", dep);
-            install_package(dep, prefix, false, false, true, processing);
+            install_package(dep, prefix, false, false, true, false, processing);
         }
     }
 
@@ -210,7 +228,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     if needs_upgrade && going_install {
         for dependent in find_dependents(&pkg.name) {
             println!("[rad] {} depends on updated {}, rebuilding", dependent, atom);
-            install_package(&dependent, prefix, true, false, true, processing);
+            install_package(&dependent, prefix, true, false, true, false, processing);
         }
     }
 }

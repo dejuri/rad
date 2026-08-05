@@ -218,27 +218,27 @@ pub fn parse_package(path: &str) -> Result<Package, String> {
     })
 }
 
-pub fn package_info(pkg_name: &str, processing: &mut HashSet<String>) {
+pub fn package_info(pkg_name: &str, local: bool, processing: &mut HashSet<String>) {
     processing.insert(pkg_name.to_string());
+
     let config = load_config();
     
-    let (atom, source) = match index::resolve_with_source(pkg_name, &config) {
-        Ok(res) => res,
-        Err(e) => {
-            eprintln!("[rad] {} {}", "error:".red(), e);
+    let rad_path = if local {
+        let path = if pkg_name.ends_with(".toml") { pkg_name.to_string() } else { format!("{}.toml", pkg_name) };
+        if !Path::new(&path).exists() {
+            eprintln!("[rad] {} local package file not found: {}", "error:".red(), path);
             processing.remove(pkg_name);
             return;
         }
-    };
-
-    let meta = read_meta(&atom);
-
-    let rad_path = match fetch_package(pkg_name) {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("[rad] {} {}", "error:".red(), e);
-            processing.remove(pkg_name);
-            return;
+        path
+    } else {
+        match fetch_package(pkg_name) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("[rad] {} {}", "error:".red(), e);
+                processing.remove(pkg_name);
+                return;
+            }
         }
     };
 
@@ -250,6 +250,33 @@ pub fn package_info(pkg_name: &str, processing: &mut HashSet<String>) {
             return;
         }
     };
+
+    let (atom, source_desc) = if local {
+        (
+            format!("local/{}", pkg.name),
+            format!("local file: {}", rad_path.yellow()),
+        )
+    } else {
+        match index::resolve_with_source(pkg_name, &config) {
+            Ok((a, source)) => {
+                let desc = if source.is_local {
+                    format!("local overlay: {}", source.base)
+                } else if source.base == config.repo.url {
+                    format!("main repository: {}", source.base)
+                } else {
+                    format!("remote overlay: {}", source.base)
+                };
+                (a, desc)
+            }
+            Err(e) => {
+                eprintln!("[rad] {} {}", "error:".red(), e);
+                processing.remove(pkg_name);
+                return;
+            }
+        }
+    };
+
+    let meta = read_meta(&atom);
 
     let installed_version_msg = if let Some(m) = meta {
         let meta_file_path = format!("/var/lib/rad/meta/{}.toml", atom);
@@ -264,14 +291,6 @@ pub fn package_info(pkg_name: &str, processing: &mut HashSet<String>) {
         }
     } else {
         String::new()
-    };
-
-    let source_desc = if source.is_local {
-        format!("local overlay -> {}", source.base.yellow())
-    } else if source.base == config.repo.url {
-        format!("main repository -> {}", source.base.yellow())
-    } else {
-        format!("remote overlay -> {}", source.base.yellow())
     };
 
     println!(
