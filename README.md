@@ -1,12 +1,12 @@
 ![Logo](https://raw.githubusercontent.com/dejuri/rad/main/logo.png)
 # rad
 
-rad — a lightweight source-based package manager for Radian GNU/Linux and other LFS-built GNU/Linux systems. Manages system packages built from source using TOML package headers, ok?
+rad is a source-based package manager for Radian GNU/Linux and other LFS-built GNU/Linux systems based on using easy-writable toml package headers. It stands for writing an overlay with ability to edit packages flexible as high as on default LFS. It usually manages system packages built from source using TOML package headers, but you still can install binaries with it
 
-rad is an abbreviation for Radian Automated TOML-packages Handler
+rad is abbreviation for Radian Automated TOML-packages Handler, though it is "rath"
 
-but when it combines with Slavic God Radogost, who is the God of trade and seafaring,
-even easier to call it just rad.
+just when it combines with Slavic God Radogost, who is the God of trade and seafaring,
+even easier to call it just rad
 
 It stays for managing system packages, user ones is better to manage with [nix](https://github.com/NixOS/nix) or other
 
@@ -79,7 +79,7 @@ rad -i rad
 ## To get help of the usage
 
 You might execute `rad -h` firstly, to see available arguments and how to use rad properly.
-## Usage/Examples
+## Examples
 Ok, you need now to understand how to describe own package. You can look for the examples in [repository](https://github.com/dejuri/radpkg), or look at this example of hello package, remember, they must be at .toml format, or rad won't find them
 ```toml
 [package]
@@ -105,7 +105,7 @@ overlays = [
 	"https://raw.githubusercontent.com/adolfisveryavgn/radpkg/main"
 ]
 ```
-You can add local or hosted overlays! This is pretty nice. But don't forget, it must contain `packages.index` in it. Use `gen-index.sh` to generate it fast. Here is it
+You should add local or hosted overlays! This is pretty nice. But don't forget, it must contain `packages.index` in it. Use this script to generate in to generate it fast
 ```sh
 #!/bin/sh
 # this is gen-index.sh for generating packages index
@@ -113,9 +113,31 @@ find . -mindepth 2 -maxdepth 2 -name '*.toml' \
   | sed 's|^\./||; s|\.toml$||' \
   | sort > packages.index
 ```
-So you can do overlay very easily. Also if you did it you can tell me, maybe i should correct something :)
 
-But if you don't want overlay, if the basic repo is enabled in config, you already can use it. Try do (as root)
+How to create a local overlay? Here, it is pretty easy
+```sh
+mkdir -p ~/.rad/overlays/ # it is not necessary to make the same directory, it could be in ~/radolf or something
+cd ~/.rad/overlays/
+```
+Then, you should clone repository of rad pkgs, because it already has bunch of packages, why would you write own nvidia-drivers? :)
+
+```sh
+git clone https://github.com/dejuri/radpkg radolf # as example
+cd radolf/stable-13
+```
+
+Now you have the overlay, you can change packages here of default radpkg repository. Run `ls` to see what categories are here
+If some packages you dont want to edit, better to remove them for not updating them manually, i sometimes update package headers in repository
+
+If you remove or add new packages in the overlay, be sure to run
+```sh
+./gen-index.sh
+```
+
+This will generate packages.index. This is necessary for rad to search packages in categories. So don't forget this
+So now you understand that you can do overlays very easily. Also if you did it you can tell me, maybe i should correct something :)
+
+Uhhh, but if you don't want overlay, if the basic repo is enabled in config, you already can use it. Try do (as root)
 ```sh
 rad --sync
 ```
@@ -144,7 +166,7 @@ You better know why you've installed it. Remember, the code is open, i think you
 
 Ok, so what now, you can create your repository of packages, install it, and rad will control it, it is good. This is the stability.
 
-You can just make a system built with rad, a Radian, and i have a project and done some progress. Good luck, comrade, do what you find needed
+You can just make a system built with rad, a Radian, and i have a project and done some progress. I use it on desktop but it is a hard experience sometimes, don't forget that it is an experimental project for now. But still, good luck, comrade, do what you find needed in this
 ## License
 
 [GPL 3.0](https://choosealicense.com/licenses/gpl-3.0/)

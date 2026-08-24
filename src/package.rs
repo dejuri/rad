@@ -254,7 +254,7 @@ pub fn package_info(pkg_name: &str, local: bool, processing: &mut HashSet<String
     let (atom, source_desc) = if local {
         (
             format!("local/{}", pkg.name),
-            format!("local file: {}", rad_path.yellow()),
+            format!("local file: {}", rad_path),
         )
     } else {
         match index::resolve_with_source(pkg_name, &config) {
