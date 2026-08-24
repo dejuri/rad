@@ -102,7 +102,7 @@ Understand? And now if you created own packages repository, you can use them alr
 url = "https://raw.githubusercontent.com/dejuri/radpkg/main/stable-13"
 overlays = [
 	"/home/adolf/radpkg/overlay",
-	"https://raw.githubusercontent.com/adolfisveryavgn/radpkg/main"
+	"https://raw.githubusercontent.com/adolfAVGN/radpkg/main"
 ]
 ```
 You should add local or hosted overlays! This is pretty nice. But don't forget, it must contain `packages.index` in it. Use this script to generate in to generate it fast
