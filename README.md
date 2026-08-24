@@ -12,7 +12,7 @@ It stays for managing system packages, user ones is better to manage with [nix](
 
 ## Installing GNU hello with rad
 
-![Showcase](https://raw.githubusercontent.com/dejuri/rad/refs/heads/main/preview.gif)
+![Showcase](https://raw.githubusercontent.com/dejuri/rad/refs/heads/main/preview.mp4)
 
 ## Dependencies
 If you do use LFS, you maybe have got most of those dependencies, but be sure you've got everything, otherwise you'll get an error one day.
