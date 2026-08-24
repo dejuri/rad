@@ -1,8 +1,8 @@
 [package]
 name = "rad"
-version = "26.8.6"
+version = "26.8.24"
 edition = "2024"
-description = "Rad - package manager for Radian GNU/Linux or (GNU/)Linux From Scratch"
+description = "Rad - package manager for Radian GNU/Linux and Linux From Scratch"
 
 [dependencies]
 colored = "3.1.1"

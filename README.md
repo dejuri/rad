@@ -120,7 +120,6 @@ mkdir -p ~/.rad/overlays/ # it is not necessary to make the same directory, it c
 cd ~/.rad/overlays/
 ```
 Then, you should clone repository of rad pkgs, because it already has bunch of packages, why would you write own nvidia-drivers? :)
-
 ```sh
 git clone https://github.com/dejuri/radpkg radolf # as example
 cd radolf/stable-13
@@ -135,6 +134,14 @@ If you remove or add new packages in the overlay, be sure to run
 ```
 
 This will generate packages.index. This is necessary for rad to search packages in categories. So don't forget this
+And after all of these work, you need to add overlay in config, then rad will use it (as root of course)
+```toml
+[repo]
+overlays = [
+	"/home/adolf/.rad/overlays/radolf/stable-13"
+]
+```
+
 So now you understand that you can do overlays very easily. Also if you did it you can tell me, maybe i should correct something :)
 
 Uhhh, but if you don't want overlay, if the basic repo is enabled in config, you already can use it. Try do (as root)
