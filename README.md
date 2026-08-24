@@ -12,9 +12,7 @@ It stays for managing system packages, user ones is better to manage with [nix](
 
 ## Installing GNU hello with rad
 
-<video src="https://raw.githubusercontent.com/dejuri/rad/main/preview.mp4" controls width="100%" autoplay loop muted>
-  Your browser does not support the video tag.
-</video>
+https://github.com/dejuri/rad/blob/main/preview.mp4
 
 ## Dependencies
 If you do use LFS, you maybe have got most of those dependencies, but be sure you've got everything, otherwise you'll get an error one day.
