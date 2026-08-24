@@ -12,7 +12,7 @@ It stays for managing system packages, user ones is better to manage with [nix](
 
 ## Installing GNU hello with rad
 
-<video src="preview.mp4" controls width="100%" autoplay loop muted>
+<video src="https://raw.githubusercontent.com/dejuri/rad/main/preview.mp4" controls width="100%" autoplay loop muted>
   Your browser does not support the video tag.
 </video>
 
