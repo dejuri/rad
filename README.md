@@ -105,7 +105,7 @@ overlays = [
 	"https://raw.githubusercontent.com/adolfAVGN/radpkg/main"
 ]
 ```
-You should add local or hosted overlays! This is pretty nice. But don't forget, it must contain `packages.index` in it. Use this script to generate in to generate it fast
+You should add local or hosted overlays! This is pretty nice. But don't forget, it must contain `packages.index` in it. Use this script to generate it fast
 ```sh
 #!/bin/sh
 # this is gen-index.sh for generating packages index
