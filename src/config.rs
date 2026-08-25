@@ -33,12 +33,29 @@ pub struct RepoConfig {
     pub overlays: Vec<String>,
 }
 
+fn expand_home(path: &str) -> String {
+    if path.starts_with("~/") || path == "~" {
+        if let Some(home) = std::env::var_os("HOME") {
+            let home_str = home.to_string_lossy();
+            return path.replacen('~', &home_str, 1);
+        }
+    }
+    path.to_string()
+}
+
 pub fn load_config() -> Config {
     let path = "/etc/rad/config.toml";
     match fs::read_to_string(path) {
         Ok(content) => {
-            match toml::from_str(&content) {
-                Ok(config) => config,
+            match toml::from_str::<Config>(&content) {
+                Ok(mut config) => {
+                    config.build.bin_cache_dir = expand_home(&config.build.bin_cache_dir);
+                    config.repo.overlays = config.repo.overlays
+                        .into_iter()
+                        .map(|p| expand_home(&p))
+                        .collect();
+                    config
+                }
                 Err(e) => {
                     eprintln!("Config error! Check your config, parser can't read it: {}", e);
                     Config::default()

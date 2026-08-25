@@ -101,7 +101,7 @@ Understand? And now if you created own packages repository, you can use them alr
 [repo]
 url = "https://raw.githubusercontent.com/dejuri/radpkg/main/stable-13"
 overlays = [
-	"/home/adolf/radpkg/overlay",
+	"~/radpkg/overlay",
 	"https://raw.githubusercontent.com/adolfAVGN/radpkg/main"
 ]
 ```
@@ -138,7 +138,7 @@ And after all of these work, you need to add overlay in config, then rad will us
 ```toml
 [repo]
 overlays = [
-	"/home/adolf/.rad/overlays/radolf/stable-13"
+	"~/.rad/overlays/radolf/stable-13"
 ]
 ```
 

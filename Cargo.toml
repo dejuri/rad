@@ -1,6 +1,6 @@
 [package]
 name = "rad"
-version = "26.8.24"
+version = "26.8.26"
 edition = "2024"
 description = "Rad - package manager for Radian GNU/Linux and Linux From Scratch"
 

@@ -227,7 +227,7 @@ dependencies = [
 
 [[package]]
 name = "rad"
-version = "26.8.6"
+version = "26.8.24"
 dependencies = [
  "chrono",
  "colored",
