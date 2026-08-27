@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>rad — lightweight source-based package manager for LFS</title>
+  <title>rad - a source-based package manager for LFS</title>
   <meta name="description" content="rad — a lightweight source-based package manager for Radian GNU/Linux and other LFS-built GNU/Linux systems." />
   <link rel="icon" href="https://raw.githubusercontent.com/dejuri/rad/main/logo.png" />
   
@@ -87,6 +87,13 @@
       margin-bottom: 12px;
       border-left: 3px solid var(--accent);
       padding-left: 12px;
+    }
+
+    h3 {
+      font-size: 18px;
+      color: #fff;
+      margin-top: 24px;
+      margin-bottom: 8px;
     }
 
     .lead { 
@@ -180,64 +187,78 @@
       </div>
       <div>
         <h1>rad</h1>
-        <div class="lead">A lightweight source-based package manager for Radian GNU/Linux and other LFS-built GNU/Linux systems. Manages system packages built from source using TOML package headers.</div>
+        <div class="lead">A source-based package manager for Radian GNU/Linux and other LFS-built GNU/Linux systems using easy-writable TOML package headers.</div>
       </div>
     </header>
 
     <div class="content">
       <section class="section">
-        <p><strong>rad</strong> is an abbreviation for <em>Radian Automated TOML-packages Handler</em>.</p>
-        <p>But when it combines with Slavic God Radogost, who is the God of trade and seafaring, it's even easier to call it just <strong>rad</strong>.</p>
+        <p><strong>rad</strong> is a source-based package manager for Radian GNU/Linux and other LFS-built GNU/Linux systems based on using easy-writable TOML package headers. It stands for writing an overlay with ability to edit packages flexible as high as on default LFS. It usually manages system packages built from source using TOML package headers, but you still can install binaries with it.</p>
+        <p><strong>rad</strong> is an abbreviation for <em>Radian Automated TOML-packages Handler</em>, though it is "rath". Just when it combines with Slavic God Radogost, who is the God of trade and seafaring, it is even easier to call it just <strong>rad</strong>.</p>
         <p>It stays for managing system packages; user ones are better managed with <a href="https://github.com/NixOS/nix" target="_blank" rel="noopener">Nix</a> or other tools.</p>
       </section>
 
       <section class="section">
         <h2>Installing GNU hello with rad</h2>
-        <img class="showcase" src="https://raw.githubusercontent.com/dejuri/rad/main/preview.gif" alt="Showcase">
+        <img class="showcase" src="https://github.com/user-attachments/assets/90540c83-8064-471c-ba42-5f467e151ce9" alt="Installing GNU hello with rad demo">
       </section>
 
       <section class="section">
         <h2>Dependencies</h2>
-        <p>If you use LFS, you probably have most of these dependencies installed, but make sure you have everything to avoid future errors.</p>
+        <p>If you use LFS, you probably have most of these dependencies installed, but be sure you've got everything, otherwise you'll get an error one day.</p>
         <ul>
-          <li><strong>cargo</strong> (building rad and runtime)</li>
-          <li><strong>make</strong> (runtime)</li>
-          <li><strong>cmake</strong> (runtime)</li>
-          <li><strong>meson</strong> (runtime)</li>
-          <li><strong>ninja</strong> (runtime)</li>
-          <li><strong>pip</strong> (runtime)</li>
-          <li><strong>tar</strong> (runtime for unpacking tarballs)</li>
-          <li><strong>unzip</strong> (runtime for non-tar archives)</li>
-          <li><strong>git</strong> (runtime)</li>
-          <li><strong>sh</strong> (runtime, can be a symlink to any POSIX shell)</li>
-          <li><strong>wget</strong> (runtime)</li>
-          <li><strong>which</strong> (runtime, used by rad to check its own dependencies via <code>--info</code>)</li>
+          <li><code>cargo</code> (building rad and runtime)</li>
+          <li><code>make</code> (runtime)</li>
+          <li><code>cmake</code> (runtime)</li>
+          <li><code>meson</code> (runtime)</li>
+          <li><code>ninja</code> (runtime)</li>
+          <li><code>pip</code> (runtime)</li>
+          <li><code>tar</code> (runtime for unpacking tarballs)</li>
+          <li><code>unzip</code> (runtime for non-tar archives)</li>
+          <li><code>git</code> (runtime)</li>
+          <li><code>sh</code> (runtime, can be symlink on other POSIX shell)</li>
+          <li><code>wget</code> (runtime)</li>
+          <li><code>which</code> (runtime, for rad could in checking own dependencies in --info)</li>
         </ul>
       </section>
 
       <section class="section">
         <h2>Installation</h2>
-        <p>Make sure you have installed all runtime dependencies first.</p>
-        <p>Clone rad with git and build it:</p>
-        <pre><code>git clone https://github.com/dejuri/rad.git Rad
-cd Rad
-cargo build --release
-sudo cp ./target/release/rad /usr/bin
-sudo mkdir -p /etc/rad
-sudo cp ./examples/config.toml /etc/rad/
-rad -I
-# optionally: rad -i rad</code></pre>
+        <p>Make sure you have installed runtime dependencies first.</p>
+        
+        <p>At the first clone rad with git:</p>
+        <pre><code>git clone https://github.com/dejuri/rad.git Rad</code></pre>
+
+        <p>Then change directory to just cloned project:</p>
+        <pre><code>cd Rad</code></pre>
+
+        <p>Build it with cargo (you might want to firstly execute <code>cargo update</code>):</p>
+        <pre><code>cargo build --release</code></pre>
+
+        <p>Then install rad into the system (execute as root):</p>
+        <pre><code>cp ./target/release/rad /usr/bin</code></pre>
+
+        <p>Now you have to create the config file (<code>/etc/rad/config.toml</code>), or just copy the example one and edit it (as root):</p>
+        <pre><code>mkdir /etc/rad -p
+cp ./examples/config.toml /etc/rad/</code></pre>
+
+        <p>Rad is installed now. Check if all of runtime dependencies are seen by rad (look at DEPENDENCIES section):</p>
+        <pre><code>rad -I</code></pre>
+
         <p>That's all!</p>
+
+        <h3>P.S. If you want you can install rad from rad itself now</h3>
+        <pre><code>rad -i rad</code></pre>
       </section>
 
       <section class="section">
-        <h2>Usage & Help</h2>
-        <p>You can execute <code>rad -h</code> to see available arguments and learn how to use rad properly.</p>
+        <h2>To get help of the usage</h2>
+        <p>You might execute <code>rad -h</code> firstly, to see available arguments and how to use rad properly.</p>
       </section>
 
       <section class="section">
-        <h2>Usage / Examples</h2>
-        <p>To understand how to describe your own package, you can look for examples in the <a href="https://github.com/dejuri/radpkg" target="_blank" rel="noopener">packages repository</a>, or check this example of the <code>hello</code> package. Remember, they must be in <code>.toml</code> format, or rad won't find them.</p>
+        <h2>Examples</h2>
+        <p>Ok, you need now to understand how to describe own package. You can look for the examples in <a href="https://github.com/dejuri/radpkg" target="_blank" rel="noopener">repository</a>, or look at this example of hello package, remember, they must be at .toml format, or rad won't find them:</p>
         <pre><code>[package]
 name = "hello"
 version = "2.12.1"
@@ -248,24 +269,73 @@ source = "https://ftp.gnu.org/gnu/hello/hello-2.12.1.tar.gz"
 system = "autotools"
 multilib_support = false
 depends = ""
-configure_args = ""</code></pre>
+configure_args = [ "" ]</code></pre>
 
-        <p>If you created your own package repository, you can use them locally without publishing. Change directory to where your packages are, and run:</p>
-        <pre><code>rad -P &lt;pkg&gt;
-rad -i &lt;pkg&gt;   # install (as root)
-cat /var/lib/rad/installed/&lt;pkg&gt;
-rad -r &lt;pkg&gt;   # remove (as root)</code></pre>
+        <p>Understand? And now if you created own packages repository, you can use them already without publishing somewhere and creating repository. This means you can just use local packages. How? In <code>/etc/rad/config.toml</code> you can add <code>overlays</code> massive in <code>[repo]</code> section. Just look:</p>
+        <pre><code># repo section of config.toml
+[repo]
+url = "https://raw.githubusercontent.com/dejuri/radpkg/main/stable-13"
+overlays = [
+	"~/radpkg/overlay",
+	"https://raw.githubusercontent.com/adolfAVGN/radpkg/main"
+]</code></pre>
+
+        <p>You should add local or hosted overlays! This is pretty nice. But don't forget, it must contain <code>packages.index</code> in it. Use this script to generate it fast:</p>
+        <pre><code>#!/bin/sh
+# this is gen-index.sh for generating packages index
+find . -mindepth 2 -maxdepth 2 -name '*.toml' \
+  | sed 's|^\./||; s|\.toml$||' \
+  | sort > packages.index</code></pre>
+
+        <p>How to create a local overlay? Here, it is pretty easy:</p>
+        <pre><code>mkdir -p ~/.rad/overlays/ # it is not necessary to make the same directory, it could be in ~/radolf or something
+cd ~/.rad/overlays/</code></pre>
+
+        <p>Then, you should clone repository of rad pkgs, because it already has bunch of packages, why would you write own nvidia-drivers? :)</p>
+        <pre><code>git clone https://github.com/dejuri/radpkg radolf # as example
+cd radolf/stable-13</code></pre>
+
+        <p>Now you have the overlay, you can change packages here of default radpkg repository. Run <code>ls</code> to see what categories are here. If some packages you dont want to edit, better to remove them for not updating them manually, i sometimes update package headers in repository.</p>
+
+        <p>If you remove or add new packages in the overlay, be sure to run:</p>
+        <pre><code>./gen-index.sh</code></pre>
+
+        <p>This will generate <code>packages.index</code>. This is necessary for rad to search packages in categories. So don't forget this. And after all of these work, you need to add overlay in config, then rad will use it (as root of course):</p>
+        <pre><code>[repo]
+overlays = [
+	"~/.rad/overlays/radolf/stable-13"
+]</code></pre>
+
+        <p>So now you understand that you can do overlays very easily. Also if you did it you can tell me, maybe i should correct something :)</p>
+
+        <p>Uhhh, but if you don't want overlay, if the basic repo is enabled in config, you already can use it. Try do (as root):</p>
+        <pre><code>rad --sync</code></pre>
+
+        <p>Then the package index will be downloaded and used. Try to check info about some package:</p>
+        <pre><code>rad -P &lt;atom&gt;</code></pre>
+
+        <p>This will give you info for your package, if you see this package and rad give information about local package, you can use it. Try to install it (as root):</p>
+        <pre><code>rad -i &lt;atom&gt;</code></pre>
+
+        <p>That's all, if no errors, you've installed your package. Now rad remember the installed files of package by the register, you can view:</p>
+        <pre><code>cat /var/lib/rad/installed/&lt;atom&gt;</code></pre>
+
+        <p>You will get the list of installed files. It also supports symlinks, don't worry about it.</p>
+
+        <p>Rad, like other basic package managers, can remove installed package (as root):</p>
+        <pre><code>rad -r &lt;atom&gt;</code></pre>
       </section>
 
       <section class="section">
         <h2>Issues</h2>
-        <p>If you encounter an issue or a bug, please create a <a href="https://github.com/dejuri/radpkg/issues/new" target="_blank" rel="noopener">new issue</a> and describe what happened.</p>
+        <p>If you have an issue or some different bugs, create a <a href="https://github.com/dejuri/radpkg/issues/new" target="_blank" rel="noopener">new issue</a> please and describe what happened and i will see it.</p>
       </section>
 
       <section class="section">
         <h2>What now?</h2>
-        <p>You know best why you installed it. Remember, the code is open — you have the right to know what you are installing.</p>
-        <p>Create your repository of packages, install them, and rad will maintain system stability. You can build an entire system with rad - a Radian. Good luck, comrade.</p>
+        <p>You better know why you've installed it. Remember, the code is open, i think you have rights to know what are you installing, yes?</p>
+        <p>Ok, so what now, you can create your repository of packages, install it, and rad will control it, it is good. This is the stability.</p>
+        <p>You can just make a system built with rad, a Radian, and i have a project and done some progress. I use it on desktop but it is a hard experience sometimes, don't forget that it is an experimental project for now. But still, good luck, comrade, do what you find needed in this.</p>
       </section>
 
       <section class="section">
