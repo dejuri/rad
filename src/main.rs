@@ -39,6 +39,9 @@ fn main() {
         return;
     }
 
+    let verbose = pargs.contains(["-v", "--verbose"]);
+    rad::set_verbose(verbose);
+
     let help = pargs.contains(["-h", "--help"]);
     let info = pargs.contains(["-I", "--info"]);
     let ver = pargs.contains(["-V", "--version"]);
@@ -70,7 +73,8 @@ fn main() {
                 -r, --remove  <pkg>     remove a package\n    \
                 -P, --pkg-info <pkg>    info about specific package\n\n  \
             Options:\n    \
-                -l, --local             use path of local toml package (with -i, -f, -b and -P)\n\n  \
+                -l, --local             use path of local toml package (with -i, -f, -b and -P)\n    \
+                -v, --verbose           show full build command output instead of a progress bar\n\n  \
             Packages are searched in main repository and overlays\n    \
             Main repository: {}\n    \
             Overlays: {}",

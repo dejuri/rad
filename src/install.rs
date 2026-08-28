@@ -7,9 +7,27 @@ use std::fs;
 use std::io::Write;
 use std::os::unix::fs as unix_fs;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::io;
+use std::time::Duration;
+use indicatif::{ProgressBar, ProgressStyle};
 use crate::meta::{write_meta, find_dependents};
+use crate::verbosity::is_verbose;
+
+fn spinner(msg: &str) -> Option<ProgressBar> {
+    if is_verbose() {
+        return None;
+    }
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::with_template("[{spinner:}] [rad] {msg}")
+            .unwrap()
+            .tick_chars("\\|/--"),
+    );
+    pb.set_message(msg.to_string());
+    pb.enable_steady_tick(Duration::from_millis(200));
+    Some(pb)
+}
 
 fn ask_to_install() -> io::Result<()> {
     println!("[rad] Are you sure that you want install this package? Y/n");
@@ -184,13 +202,15 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         
     // Now go register
     if going_install {
-        println!("[rad] registering files for {}...", pkg.name);
+        let pb = spinner(&format!("registering files for {}...", pkg.name));
         if let Err(e) = register_package_files(&atom, &dest_dir) {
             eprintln!("[rad] registration error: {}", e);
         }
-        println!("[rad] writing meta for {}...", pkg.name);
         if let Err(e) = write_meta(&atom, &pkg.version, category, &pkg.depends) {
             eprintln!("[rad] error writing meta: {}", e);
+        }
+        if let Some(pb) = pb {
+            pb.finish_and_clear();
         }
     
         // And now merging
@@ -240,43 +260,29 @@ pub fn download_and_extract(pkg: &Package) -> Result<String, String> {
     if pkg.source.ends_with(".git")
         || (pkg.source.contains("github.com") && !pkg.source.contains(".tar"))
     {
-        println!("[rad] git detected. Cloning {}...", pkg.source);
-        let status = Command::new("git")
-            .args(["clone", "--recursive", &pkg.source, &work_dir])
-            .status()
-            .map_err(|e| format!("git clone failed: {}", e))?;
-        if !status.success() {
-            return Err("git clone failed".to_string());
-        }
+        let mut cmd = Command::new("git");
+        cmd.args(["clone", "--recursive", &pkg.source, &work_dir]);
+        run_cmd(cmd, &format!("cloning {}", pkg.source))?;
         return Ok(work_dir);
     }
 
     let archive_name = pkg.source.split('/').next_back().unwrap_or("source.tar.gz");
     let archive_path = format!("{}/{}", work_dir, archive_name);
 
-    println!("[rad] downloading {}...", pkg.source);
-    let status = Command::new("wget")
-        .args(["-c", &pkg.source, "-O", &archive_path])
-        .status()
-        .map_err(|e| format!("download failed: {}", e))?;
-    if !status.success() {
-        return Err("download failed".to_string());
-    }
+    let mut wget_cmd = Command::new("wget");
+    wget_cmd.args(["-c", &pkg.source, "-O", &archive_path]);
+    run_cmd(wget_cmd, &format!("downloading {}", archive_name))?;
 
-    println!("[rad] extracting {}...", archive_name);
-    let extract_status = if archive_path.ends_with(".zip") {
-        Command::new("unzip")
-            .args([&archive_path, "-d", &work_dir])
-            .status()
+    let extract_cmd = if archive_path.ends_with(".zip") {
+        let mut c = Command::new("unzip");
+        c.args([&archive_path, "-d", &work_dir]);
+        c
     } else {
-        Command::new("tar")
-            .args(["-xf", &archive_path, "-C", &work_dir])
-            .status()
-    }
-    .map_err(|e| format!("extraction failed: {}", e))?;
-    if !extract_status.success() {
-        return Err("extraction failed".to_string());
-    }
+        let mut c = Command::new("tar");
+        c.args(["-xf", &archive_path, "-C", &work_dir]);
+        c
+    };
+    run_cmd(extract_cmd, &format!("extracting {}", archive_name))?;
 
     let versioned = format!("{}/{}-{}", work_dir, pkg.name, pkg.version);
     let plain = format!("{}/{}", work_dir, pkg.name);
@@ -325,7 +331,9 @@ pub fn build_and_install(
 
     match &pkg.build_system {
         BuildSystem::Autotools => {
-            println!("[rad] build system: autotools");
+            if is_verbose() {
+                println!("[rad] build system compiler: autotools");
+            }
             let mut cmd = Command::new("./configure");
             cmd.arg(format!("--prefix={}", prefix))
                 .arg(format!("--libdir={}", current_libdir))
@@ -342,7 +350,9 @@ pub fn build_and_install(
         }
 
         BuildSystem::Make => {
-            println!("[rad] build system: make");
+            if is_verbose() {
+                println!("[rad] build system compiler: make");
+            }
             let mut args: Vec<String> = vec![format!("-j{}", jobs)];
             for arg in &current_configure_args {
                 args.push(arg.clone());
@@ -363,7 +373,9 @@ pub fn build_and_install(
         }
 
         BuildSystem::Cmake => {
-            println!("[rad] build system: cmake + ninja");
+            if is_verbose() {
+                println!("[rad] build system compiler: cmake/ninja");
+            }
             let build_dir = format!("{}/build", src_dir);
             let _ = fs::remove_dir_all(&build_dir);
             fs::create_dir_all(&build_dir).unwrap();
@@ -386,7 +398,9 @@ pub fn build_and_install(
         }
 
         BuildSystem::Meson => {
-            println!("[rad] build system: meson + ninja");
+            if is_verbose() {
+                println!("[rad] build system compiler: meson/ninja");
+            }
             let build_dir = format!("{}/build", src_dir);
             let mut cmd = Command::new("meson");
             cmd.arg("setup")
@@ -403,7 +417,9 @@ pub fn build_and_install(
         }
 
         BuildSystem::Cargo => {
-            println!("[rad] build system: cargo");
+            if is_verbose() {
+                println!("[rad] build system compiler: cargo");
+            }
             let mut cmd = Command::new("cargo");
             cmd.arg("build")
                 .arg("--release")
@@ -419,7 +435,9 @@ pub fn build_and_install(
         }
 
         BuildSystem::Python => {
-            println!("[rad] build system: python (pip)");
+            if is_verbose() {
+                println!("[rad] build system compiler: python/pip");
+            }
             let mut cmd = Command::new("pip");
             cmd.args(["install", "--prefix", prefix, "--root", dest_dir, "."])
                 .current_dir(src_dir);
@@ -430,38 +448,27 @@ pub fn build_and_install(
             build_commands,
             install_commands,
         } => {
-            println!("[rad] build system: manual");
+            if is_verbose() {
+                println!("[rad] build system: manual");
+            }
             for (i, cmd_str) in build_commands.iter().enumerate() {
-                println!(
-                    "[rad] build step {}/{}: {}",
-                    i + 1,
-                    build_commands.len(),
-                    cmd_str
-                );
-                let status = Command::new("sh")
-                    .arg("-c")
+                let mut cmd = Command::new("sh");
+                cmd.arg("-c")
                     .arg(cmd_str)
                     .current_dir(src_dir)
                     .env("PREFIX", prefix)
                     .env("LIBDIR", &current_libdir)
                     .env("IS_M32", if is_m32 { "1" } else { "0" })
                     .env("RAD_MULTILIB", if config.arch.multilib { "1" } else { "0" })
-                    .env("RAD_MAKEOPTS", &jobs)
-                    .status()
-                    .map_err(|e| format!("build step failed to start: {}", e))?;
-                if !status.success() {
-                    return Err(format!("build step failed: {}", cmd_str));
-                }
+                    .env("RAD_MAKEOPTS", &jobs);
+                run_cmd(
+                    cmd,
+                    &format!("build step {}/{}: {}", i + 1, build_commands.len(), cmd_str),
+                )?;
             }
             for (i, cmd_str) in install_commands.iter().enumerate() {
-                println!(
-                    "[rad] install step {}/{}: {}",
-                    i + 1,
-                    install_commands.len(),
-                    cmd_str
-                );
-                let status = Command::new("sh")
-                    .arg("-c")
+                let mut cmd = Command::new("sh");
+                cmd.arg("-c")
                     .arg(cmd_str)
                     .current_dir(src_dir)
                     .env("DESTDIR", dest_dir)
@@ -469,29 +476,59 @@ pub fn build_and_install(
                     .env("LIBDIR", &current_libdir)
                     .env("IS_M32", if is_m32 { "1" } else { "0" })
                     .env("RAD_MULTILIB", if config.arch.multilib { "1" } else { "0" })
-                    .env("RAD_MAKEOPTS", &jobs)
-                    .status()
-                    .map_err(|e| format!("install step failed to start: {}", e))?;
-                if !status.success() {
-                    return Err(format!("install step failed: {}", cmd_str));
-                }
+                    .env("RAD_MAKEOPTS", &jobs);
+                run_cmd(
+                    cmd,
+                    &format!("install step {}/{}: {}", i + 1, install_commands.len(), cmd_str),
+                )?;
             }
         }
     }
 
-    println!("[rad] build finished");
+    if is_verbose() {
+        println!("[rad] build finished");
+    }
     Ok(())
 }
 
 pub fn run_cmd(mut cmd: Command, label: &str) -> Result<(), String> {
-    println!("[rad] running: {}...", label);
-    let status = cmd
-        .status()
-        .map_err(|e| format!("{} failed to start: {}", label, e))?;
-    if !status.success() {
-        return Err(format!("{} exited with status: {}", label, status));
+    if is_verbose() {
+        println!("[rad] {}...", label);
+        let status = cmd
+            .status()
+            .map_err(|e| format!("{} failed to start: {}", label, e))?;
+        if !status.success() {
+            return Err(format!("{} exited with status: {}", label, status));
+        }
+        return Ok(());
     }
-    Ok(())
+
+    let pb = spinner(&format!("{}...", label));
+    let output = cmd
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|e| format!("{} failed to start: {}", label, e))?;
+
+    if output.status.success() {
+        if let Some(pb) = pb {
+            pb.finish_and_clear();
+        }
+        println!("[rad] {} done", label);
+        Ok(())
+    }
+    else {
+        if let Some(pb) = pb {
+            pb.finish_and_clear();
+        }
+        println!("[rad] {} failed", label);
+        
+        // On failure we still want the logs, even without -v, so print whatever the command produced before bubbling up the error
+        io::Write::write_all(&mut io::stdout(), &output.stdout).ok();
+        io::Write::write_all(&mut io::stderr(), &output.stderr).ok();
+        Err(format!("{} exited with status: {}", label, output.status))
+    }
 }
 
 pub fn make_cmd(dir: &str, args: &[&str]) -> Command {
@@ -530,7 +567,6 @@ pub fn register_package_files(atom: &str, dest_dir: &str) -> std::io::Result<()>
     collect_files(dest_path, dest_path, &mut manifest)
 }
 
-// Force now works in stack
 pub fn cleanup_orphaned_files(pkg_name: &str, old_files: &HashSet<String>) {
     let db_manifest = format!("/var/lib/rad/installed/{}", pkg_name);
     let new_files: HashSet<String> = fs::read_to_string(&db_manifest)
@@ -582,11 +618,15 @@ pub fn collect_files(root: &Path, current: &Path, manifest: &mut fs::File) -> st
 }
 
 pub fn merge(dest_dir: &str, install_path: &str) -> Result<(), String> {
-    println!("[rad] merging files...");
+    let pb = spinner("merging files...");
     let dest_path = Path::new(dest_dir);
-    merge_dir(dest_path, dest_path, Path::new(install_path)).map_err(|e| format!("merge failed: {}", e))?;
-    println!("[rad] merge done");
-    Ok(())
+    let result = merge_dir(dest_path, dest_path, Path::new(install_path))
+        .map_err(|e| format!("merge failed: {}", e));
+    match &pb {
+        Some(pb) => pb.finish_and_clear(),
+        None => println!("[rad] merge done"),
+    }
+    result
 }
 
 pub fn merge_dir(root: &Path, current: &Path, target_base: &Path) -> std::io::Result<()> {
