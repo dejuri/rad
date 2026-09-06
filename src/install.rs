@@ -268,7 +268,7 @@ pub fn download_and_extract(pkg: &Package) -> Result<String, String> {
     let work_dir = format!("/tmp/rad/build/{}", pkg.name);
     fs::create_dir_all(&work_dir).map_err(|e| format!("cannot create build dir: {}", e))?;
 
-    // Пропускаємо викачування, якщо це unfree пакет без вказаного джерела
+    // Skip downloading if source is empty
     if pkg.source.is_empty() {
         return Ok(work_dir);
     }
@@ -431,7 +431,7 @@ pub fn build_and_install(
             run_cmd(ninja_cmd(&build_dir, &["-j", &cores]), "ninja")?;
             run_cmd(ninja_install_cmd(&build_dir, dest_dir), "ninja install")?;
         }
-
+                )?;
         BuildSystem::Cargo => {
             if is_verbose() {
                 println!("[rad] build system compiler: cargo");
