@@ -52,6 +52,7 @@ fn ask_to_install() -> io::Result<()> {
         }
     }
 }
+
 pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool, going_install: bool, local: bool, processing: &mut HashSet<String>) {
     let config = load_config();
 
@@ -104,7 +105,6 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
             }
         }
     };
-
 
     let category = atom.rsplit_once('/').map(|(c, _)| c).unwrap_or("");
 
@@ -267,6 +267,11 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
 pub fn download_and_extract(pkg: &Package) -> Result<String, String> {
     let work_dir = format!("/tmp/rad/build/{}", pkg.name);
     fs::create_dir_all(&work_dir).map_err(|e| format!("cannot create build dir: {}", e))?;
+
+    // Пропускаємо викачування, якщо це unfree пакет без вказаного джерела
+    if pkg.source.is_empty() {
+        return Ok(work_dir);
+    }
 
     if pkg.source.ends_with(".git")
         || (pkg.source.contains("github.com") && !pkg.source.contains(".tar"))
@@ -464,10 +469,13 @@ pub fn build_and_install(
             }
             for (i, cmd_str) in build_commands.iter().enumerate() {
                 let mut cmd = Command::new("sh");
-                cmd.arg("-c")
-                    .arg(cmd_str)
-                    .current_dir(src_dir)
-                    .env("PREFIX", prefix)
+                cmd.arg("-c").arg(cmd_str);
+
+                if Path::new(src_dir).exists() {
+                    cmd.current_dir(src_dir);
+                }
+
+                cmd.env("PREFIX", prefix)
                     .env("LIBDIR", &current_libdir)
                     .env("IS_M32", if is_m32 { "1" } else { "0" })
                     .env("RAD_MULTILIB", if config.arch.multilib { "1" } else { "0" })
@@ -479,10 +487,13 @@ pub fn build_and_install(
             }
             for (i, cmd_str) in install_commands.iter().enumerate() {
                 let mut cmd = Command::new("sh");
-                cmd.arg("-c")
-                    .arg(cmd_str)
-                    .current_dir(src_dir)
-                    .env("DESTDIR", dest_dir)
+                cmd.arg("-c").arg(cmd_str);
+
+                if Path::new(src_dir).exists() {
+                    cmd.current_dir(src_dir);
+                }
+
+                cmd.env("DESTDIR", dest_dir)
                     .env("PREFIX", prefix)
                     .env("LIBDIR", &current_libdir)
                     .env("IS_M32", if is_m32 { "1" } else { "0" })

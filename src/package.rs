@@ -129,6 +129,74 @@ struct RawToml {
     build: RawBuildSection,
 }
 
+impl TryFrom<RawToml> for Package {
+    type Error = String;
+
+    fn try_from(raw: RawToml) -> Result<Self, Self::Error> {
+        let RawPackageSection {
+            name,
+            version,
+            description,
+            source,
+            unfree,
+        } = raw.package;
+
+        if name.is_empty() {
+            return Err("field 'name' is required in [package]".to_string());
+        }
+
+        // Перевірка джерела: вимагається тільки якщо unfree == false
+        if !unfree && source.is_empty() {
+            return Err("field 'source' is required in [package] when unfree is false".to_string());
+        }
+
+        let RawBuildSection {
+            system: build_system_str,
+            depends,
+            configure_args,
+            build_commands,
+            install_commands,
+            multilib_support,
+            multilib_configure_args,
+        } = raw.build;
+
+        let build_system = match build_system_str.as_str() {
+            "autotools" => BuildSystem::Autotools,
+            "cmake" => BuildSystem::Cmake,
+            "meson" => BuildSystem::Meson,
+            "cargo" => BuildSystem::Cargo,
+            "python" => BuildSystem::Python,
+            "make" => BuildSystem::Make,
+            "manual" => {
+                if build_commands.is_empty() {
+                    return Err("manual build system requires 'build_commands' field".to_string());
+                }
+                if install_commands.is_empty() {
+                    return Err("manual build system requires 'install_commands' field".to_string());
+                }
+                BuildSystem::Manual {
+                    build_commands,
+                    install_commands,
+                }
+            }
+            other => return Err(format!("unknown build system: '{}'", other)),
+        };
+
+        Ok(Package {
+            name,
+            version,
+            description,
+            source,
+            unfree,
+            build_system,
+            depends,
+            configure_args,
+            multilib_support,
+            multilib_configure_args,
+        })
+    }
+}
+
 pub fn fetch_package(pkg_name: &str) -> Result<String, String> {
     let config = load_config();
 
@@ -165,62 +233,7 @@ pub fn parse_package(path: &str) -> Result<Package, String> {
     let raw: RawToml = toml::from_str(&content)
         .map_err(|e| format!("invalid toml in {}: {}", path, e))?;
 
-    let RawPackageSection {
-        name,
-        version,
-        description,
-        source,
-        unfree,
-    } = raw.package;
-
-    let RawBuildSection {
-        system: build_system_str,
-        depends,
-        configure_args,
-        build_commands,
-        install_commands,
-        multilib_support,
-        multilib_configure_args,
-    } = raw.build;
-
-    let build_system = match build_system_str.as_str() {
-        "autotools" => BuildSystem::Autotools,
-        "cmake" => BuildSystem::Cmake,
-        "meson" => BuildSystem::Meson,
-        "cargo" => BuildSystem::Cargo,
-        "python" => BuildSystem::Python,
-        "make" => BuildSystem::Make,
-        "manual" => {
-            if build_commands.is_empty() {
-                return Err("manual build system requires 'build_commands' field".to_string());
-            }
-            if install_commands.is_empty() {
-                return Err("manual build system requires 'install_commands' field".to_string());
-            }
-            BuildSystem::Manual {
-                build_commands,
-                install_commands,
-            }
-        }
-        other => return Err(format!("unknown build system: '{}'", other)),
-    };
-
-    if name.is_empty() || source.is_empty() {
-        return Err("name and source are required fields in package".to_string());
-    }
-
-    Ok(Package {
-        name,
-        version,
-        description,
-        source,
-        unfree,
-        build_system,
-        depends,
-        configure_args,
-        multilib_support,
-        multilib_configure_args,
-    })
+    raw.try_into()
 }
 
 pub fn package_info(pkg_name: &str, local: bool, processing: &mut HashSet<String>) {
