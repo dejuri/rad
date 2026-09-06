@@ -14,6 +14,7 @@ pub struct Package {
     pub version: String,
     pub description: String,
     pub source: String,
+    pub unfree: bool,
     pub build_system: BuildSystem,
     pub depends: Vec<String>,
     pub configure_args: Vec<String>,
@@ -98,6 +99,8 @@ struct RawPackageSection {
     description: String,
     #[serde(default)]
     source: String,
+    #[serde(default)]
+    unfree: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -167,6 +170,7 @@ pub fn parse_package(path: &str) -> Result<Package, String> {
         version,
         description,
         source,
+        unfree,
     } = raw.package;
 
     let RawBuildSection {
@@ -210,6 +214,7 @@ pub fn parse_package(path: &str) -> Result<Package, String> {
         version,
         description,
         source,
+        unfree,
         build_system,
         depends,
         configure_args,
@@ -294,16 +299,16 @@ pub fn package_info(pkg_name: &str, local: bool, processing: &mut HashSet<String
     };
 
     println!(
-        "[rad] Info about {}:\n  \
+        "[rad] Info about {}{}:\n  \
         - Description: {}\n  \
-        - Package origin: {}\n  \
-        - Package source: {}\n  \
-        - Version: {}{}",
+        - Package origin: {}\n\
+        {}  - Version: {}{}",
         atom.yellow(),
+        if pkg.unfree { " [PROPRIETARY]".red() } else { "".red() },
         pkg.description,
         source_desc,
-        pkg.source,
+        if !pkg.unfree { format!("  - Package source: {}\n", pkg.source) } else { "".to_string() },
         pkg.version,
-        installed_version_msg,
+        installed_version_msg
     );
 }

@@ -20,9 +20,11 @@ pub struct ArchConfig {
 #[derive(Deserialize, Default)]
 pub struct BuildConfig {
     #[serde(default)]
-    pub makeopts: u8,
+    pub cores: u8,
     pub ask: bool,
     pub bin_cache_dir: String,
+    #[serde(default)]
+    pub allow_unfree: bool,
 }
 
 #[derive(Deserialize, Default)]

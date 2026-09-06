@@ -123,19 +123,30 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     // Package information
     println!("[rad] Building package {} ({})\n  \
                     - Description: {}\n  \
-                    - Package origin: {}\n  \
-                    - Package source: {}", 
+                    - Package origin: {}\n\
+                    {}", 
                     atom.yellow(), 
                     pkg.version.yellow(), 
                     pkg.description, 
                     origin_str, 
-                    pkg.source);
+                    if !pkg.unfree { format!("  - Package source: {}", pkg.source) } else { String::from("  - Package is proprietary!") });
     if is_installed(&atom) && going_install {
         println!("  - Installed version: {}", installed_meta.unwrap().version)
     }
     else { println!() }
 
-    if config.build.ask && askable && going_install{
+    if !config.build.allow_unfree && pkg.unfree {
+        println!(" \
+            [rad] {} This package is marked as proprietary! You can install this at your own risk,\n  \
+            to allow rad installing proprietary packages, change the next option in {} to true:\n\n    \
+            {}\n    \
+            {} = true\n\n  \
+            You was warned, that you have no warranty for this. You are on your own, good luck", "error:".red(), "/etc/rad/config.toml".bold(), "[build]".bold(), "allow_unfree".blue()
+        );
+
+        std::process::exit(1);
+    }
+    if config.build.ask && askable && going_install {
         let _ = ask_to_install();
     }
 
@@ -312,10 +323,10 @@ pub fn build_and_install(
     let mut current_configure_args = pkg.configure_args.clone();
     let mut current_libdir = format!("{}/lib", prefix);
     let config = load_config();
-    let jobs = if config.build.makeopts == 0 {
+    let cores = if config.build.cores == 0 {
         num_cpus::get().to_string()
     } else {
-        config.build.makeopts.to_string()
+        config.build.cores.to_string()
     };
 
     if is_m32 {
@@ -342,7 +353,7 @@ pub fn build_and_install(
                 cmd.arg(arg);
             }
             run_cmd(cmd, "configure")?;
-            run_cmd(make_cmd(src_dir, &[&format!("-j{}", jobs)]), "make")?;
+            run_cmd(make_cmd(src_dir, &[&format!("-j{}", cores)]), "make")?;
             run_cmd(
                 make_cmd(src_dir, &[&format!("DESTDIR={}", dest_dir), "install"]),
                 "make install",
@@ -353,7 +364,7 @@ pub fn build_and_install(
             if is_verbose() {
                 println!("[rad] build system compiler: make");
             }
-            let mut args: Vec<String> = vec![format!("-j{}", jobs)];
+            let mut args: Vec<String> = vec![format!("-j{}", cores)];
             for arg in &current_configure_args {
                 args.push(arg.clone());
             }
@@ -393,7 +404,7 @@ pub fn build_and_install(
                 cmd.arg(arg);
             }
             run_cmd(cmd, "cmake")?;
-            run_cmd(ninja_cmd(&build_dir, &["-j", &jobs]), "ninja")?;
+            run_cmd(ninja_cmd(&build_dir, &["-j", &cores]), "ninja")?;
             run_cmd(ninja_install_cmd(&build_dir, dest_dir), "ninja install")?;
         }
 
@@ -412,7 +423,7 @@ pub fn build_and_install(
                 cmd.arg(arg);
             }
             run_cmd(cmd, "meson setup")?;
-            run_cmd(ninja_cmd(&build_dir, &["-j", &jobs]), "ninja")?;
+            run_cmd(ninja_cmd(&build_dir, &["-j", &cores]), "ninja")?;
             run_cmd(ninja_install_cmd(&build_dir, dest_dir), "ninja install")?;
         }
 
@@ -424,7 +435,7 @@ pub fn build_and_install(
             cmd.arg("build")
                 .arg("--release")
                 .arg("--jobs")
-                .arg(jobs)
+                .arg(cores)
                 .current_dir(src_dir);
             run_cmd(cmd, "cargo build")?;
             let bin_dest = format!("{}{}/bin", dest_dir, prefix);
@@ -460,7 +471,7 @@ pub fn build_and_install(
                     .env("LIBDIR", &current_libdir)
                     .env("IS_M32", if is_m32 { "1" } else { "0" })
                     .env("RAD_MULTILIB", if config.arch.multilib { "1" } else { "0" })
-                    .env("RAD_MAKEOPTS", &jobs);
+                    .env("RAD_CORES", &cores);
                 run_cmd(
                     cmd,
                     &format!("build step {}/{}: {}", i + 1, build_commands.len(), cmd_str),
@@ -476,7 +487,7 @@ pub fn build_and_install(
                     .env("LIBDIR", &current_libdir)
                     .env("IS_M32", if is_m32 { "1" } else { "0" })
                     .env("RAD_MULTILIB", if config.arch.multilib { "1" } else { "0" })
-                    .env("RAD_MAKEOPTS", &jobs);
+                    .env("RAD_CORES", &cores);
                 run_cmd(
                     cmd,
                     &format!("install step {}/{}: {}", i + 1, install_commands.len(), cmd_str),

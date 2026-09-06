@@ -93,8 +93,8 @@ fn main() {
                 Err(e) => eprintln!("  - {}: {}", i, e.red()),
             }
         }
-        println!("CONFIG\n  ARCH\n    - multilib: {}\n  BUILD\n    - makeopts: {}\n    - ask: {}\n    - bin cache dir: {}\n  REPO\n    - url: {}\n    - overlays: {:?}",
-            config.arch.multilib, config.build.makeopts, config.build.ask, config.build.bin_cache_dir, config.repo.url, config.repo.overlays
+        println!("CONFIG\n  ARCH\n    - multilib: {}\n  BUILD\n    - cores: {}\n    - ask: {}\n    - bin cache dir: {}\n  REPO\n    - url: {}\n    - overlays: {:?}",
+            config.arch.multilib, config.build.cores, config.build.ask, config.build.bin_cache_dir, config.repo.url, config.repo.overlays
         );
     } else if ver {
         println!(

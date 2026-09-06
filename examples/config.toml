@@ -4,15 +4,16 @@
 multilib = false
 
 [build]
-makeopts = 4
+cores = 2
 ask = true
 bin_cache_dir = "~/.rad/bin"
+allow_unfree = false
 
 [repo]
 url = "https://raw.githubusercontent.com/dejuri/radpkg/main/stable-13"
 overlays = [
-	"~/radpkg/overlay",
-	"https://raw.githubusercontent.com/adolfisveryavgn/radpkg/main"
+	"/home/adolf/.rad/overlay/radolf",
+	"https://raw.githubusercontent.com/adolfisveryavgn/radpkg/main/unstable"
 ]
 
 # End
