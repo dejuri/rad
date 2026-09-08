@@ -1,4 +1,4 @@
-[![Made in Ukraine](https://img.shields.io/badge/made_in-Ukraine-ffd700.svg?labelColor=0057b7)](https://stand-with-ukraine.pp.ua) https://img.shields.io/badge/license-GPL-blue https://img.shields.io/badge/gnu-linux-yellow https://img.shields.io/badge/gnu-linux-yellow 
+[![Made in Ukraine](https://img.shields.io/badge/made_in-Ukraine-ffd700.svg?labelColor=0057b7)](https://stand-with-ukraine.pp.ua) ![License](https://img.shields.io/badge/license-GPL-blue) ![Linux](https://img.shields.io/badge/gnu-linux-yellow) ![Rust](https://img.shields.io/badge/language-rust-red)
 
 [![Stand With Ukraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/banner-direct-single.svg)](https://stand-with-ukraine.pp.ua)
 
