@@ -1,3 +1,5 @@
+[![Made in Ukraine](https://img.shields.io/badge/made_in-Ukraine-ffd700.svg?labelColor=0057b7)](https://stand-with-ukraine.pp.ua) https://img.shields.io/badge/license-GPL-blue https://img.shields.io/badge/gnu-linux-yellow https://img.shields.io/badge/gnu-linux-yellow 
+
 [![Stand With Ukraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/banner-direct-single.svg)](https://stand-with-ukraine.pp.ua)
 
 ![Logo](https://raw.githubusercontent.com/dejuri/rad/main/logo.png)
