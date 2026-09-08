@@ -145,7 +145,7 @@ impl TryFrom<RawToml> for Package {
             return Err("field 'name' is required in [package]".to_string());
         }
 
-        // Перевірка джерела: вимагається тільки якщо unfree == false
+        // Check source: needed only if unfree == false
         if !unfree && source.is_empty() {
             return Err("field 'source' is required in [package] when unfree is false".to_string());
         }
