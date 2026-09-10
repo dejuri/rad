@@ -23,6 +23,7 @@ fn spinner(msg: &str, verbose: bool) -> Option<ProgressBar> {
         ProgressStyle::with_template("[{spinner:}] [rad] {msg}")
             .unwrap()
             .tick_chars(r"\|/- "),
+    );
     pb.set_message(msg.to_string());
     pb.enable_steady_tick(Duration::from_millis(150));
     Some(pb)
