@@ -20,6 +20,7 @@ pub struct Package {
     pub configure_args: Vec<String>,
     pub multilib_support: bool,
     pub multilib_configure_args: Vec<String>,
+    pub post_install: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -111,7 +112,7 @@ struct RawBuildSection {
     depends: Vec<String>,
     #[serde(default, deserialize_with = "string_or_array")]
     configure_args: Vec<String>,
-    #[serde(default, deserialize_with = "string_or_array")]
+    #[serde(default, deserialize_with = "string_or_array", alias = "build_command")]
     build_commands: Vec<String>,
     #[serde(default, deserialize_with = "string_or_array", alias = "install_command")]
     install_commands: Vec<String>,
@@ -119,6 +120,8 @@ struct RawBuildSection {
     multilib_support: bool,
     #[serde(default, deserialize_with = "string_or_array")]
     multilib_configure_args: Vec<String>,
+    #[serde(default, deserialize_with = "string_or_array")]
+    post_install: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -158,6 +161,7 @@ impl TryFrom<RawToml> for Package {
             install_commands,
             multilib_support,
             multilib_configure_args,
+            post_install,
         } = raw.build;
 
         let build_system = match build_system_str.as_str() {
@@ -193,6 +197,7 @@ impl TryFrom<RawToml> for Package {
             configure_args,
             multilib_support,
             multilib_configure_args,
+            post_install,
         })
     }
 }

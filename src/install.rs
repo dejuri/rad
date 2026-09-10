@@ -53,14 +53,14 @@ fn ask_to_install() -> io::Result<()> {
     }
 }
 
-pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool, going_install: bool, local: bool, processing: &mut HashSet<String>) {
+pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool, going_install: bool, local: bool, processing: &mut HashSet<String>) -> Result<(), Box<dyn std::error::Error>> {
     let config = load_config();
 
     let rad_path = if local {
         let path = if pkg_name.ends_with(".toml") { pkg_name.to_string() } else { format!("{}.toml", pkg_name) };
         if !Path::new(&path).exists() {
             eprintln!("[rad] {} local package file not found: {}", "error:".red(), path);
-            return;
+            return Ok(());
         }
         path
     } else {
@@ -68,7 +68,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
             Ok(p) => p,
             Err(e) => {
                 eprintln!("[rad] {} {}", "error:".red(), e);
-                return;
+                return Ok(());
             }
         }
     };
@@ -77,7 +77,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         Ok(p) => p,
         Err(e) => {
             eprintln!("[rad] {} {}", "parse error:".red(), e);
-            return;
+            return Ok(());
         }
     };
 
@@ -101,7 +101,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
             Err(e) => {
                 eprintln!("[rad] {} {}", "error:".red(), e);
                 processing.remove(pkg_name);
-                return;
+                return Ok(());
             }
         }
     };
@@ -117,7 +117,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
 
     if installed_meta.is_some() && !needs_upgrade && !force {
         println!("[rad] {} is already up to date ({})", atom.yellow(), pkg.version);
-        return;
+        return Ok(());
     }
 
     // Package information
@@ -156,7 +156,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
             "error:".red(),
             atom.yellow()
         );
-        return;
+        return Ok(());
     }
 
     processing.insert(pkg.name.clone());
@@ -167,7 +167,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
             .unwrap_or_else(|_| dep.clone());
         if !is_installed(&dep_atom) {
             println!("[rad] resolving dependency: {}", dep);
-            install_package(dep, prefix, false, false, true, false, processing);
+            install_package(dep, prefix, false, false, true, false, processing)?;
         }
     }
 
@@ -176,7 +176,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         Err(e) => {
             eprintln!("[rad] {} {}", "error:".red(), e);
             processing.remove(&pkg.name);
-            return;
+            return Ok(());
         }
     };
 
@@ -188,7 +188,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     if let Err(e) = build_and_install(&pkg, &src_dir, prefix, &dest_dir, false) {
         eprintln!("[rad] {} {}", "build error:".red(), e);
         processing.remove(&pkg.name);
-        return;
+        return Ok(());
     }
 
     // 32 bit build if needed
@@ -197,7 +197,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         if let Err(e) = build_and_install(&pkg, &src_dir, prefix, &dest_dir, true) {
             eprintln!("[rad] {} {}", "multilib build error:".red(), e);
             processing.remove(&pkg.name);
-            return;
+            return Ok(());
         }
     }
 
@@ -228,17 +228,43 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         if let Err(e) = merge(&dest_dir, "/") {
             eprintln!("[rad] {} {}", "merge error:".red(), e);
             processing.remove(&pkg.name);
-            return;
+            return Ok(());
         }
     }
     else{
         if let Err(e) = merge(&dest_dir, &format!("{}/{}", &config.build.bin_cache_dir, pkg.name)) {
             eprintln!("[rad] {} {}", "merge error:".red(), e);
             processing.remove(&pkg.name);
-            return;
+            return Ok(());
         }
     }
-    
+
+    // Post-installation
+    let post_install = &pkg.post_install;
+
+    let current_libdir = format!("{}/lib", prefix);
+    let cores = std::thread::available_parallelism()
+        .map(|n| n.get().to_string())
+        .unwrap_or_else(|_| "1".to_string());
+
+    if going_install {
+        for (i, cmd_str) in post_install.iter().enumerate() {
+            let mut cmd = Command::new("sh");
+            cmd.arg("-c").arg(cmd_str);
+            cmd.env("LIBDIR", &current_libdir)
+            .env("RAD_CORES", &cores);
+
+            if Path::new(&src_dir).exists() {
+                cmd.current_dir(&src_dir);
+            }
+
+            run_cmd(
+                cmd,
+                &format!("post-installation step {}/{}: {}", i + 1, post_install.len(), cmd_str),
+            )?;
+        }
+    }
+
     // Remove outdated files, that weren't installed in new version of package
     if (force || needs_upgrade) && !old_files.is_empty() {
         cleanup_orphaned_files(&atom, &old_files);
@@ -259,9 +285,11 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     if needs_upgrade && going_install {
         for dependent in find_dependents(&pkg.name) {
             println!("[rad] {} depends on updated {}, rebuilding", dependent, atom);
-            install_package(&dependent, prefix, true, false, true, false, processing);
+            install_package(&dependent, prefix, true, false, true, false, processing)?;
         }
     }
+
+    Ok(())
 }
 
 pub fn download_and_extract(pkg: &Package) -> Result<String, String> {

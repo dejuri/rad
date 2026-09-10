@@ -157,13 +157,13 @@ fn main() {
         println!("Hi there, bro");
     } else if let Some(name) = install_pkg {
         let mut processing = HashSet::new();
-        install_package(&name, prefix, false, true, true, local, &mut processing);
+        let _ = install_package(&name, prefix, false, true, true, local, &mut processing);
     } else if let Some(name) = force_pkg {
         let mut processing = HashSet::new();
-        install_package(&name, prefix, true, true, true, local, &mut processing);
+        let _ = install_package(&name, prefix, true, true, true, local, &mut processing);
     } else if let Some(name) = build_pkg {
         let mut processing = HashSet::new();
-        install_package(&name, prefix, true, true, false, local, &mut processing);
+        let _ = install_package(&name, prefix, true, true, false, local, &mut processing);
     } else if let Some(name) = pkg_info {
         let mut processing = HashSet::new();
         package_info(&name, local, &mut processing);
