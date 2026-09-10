@@ -96,6 +96,8 @@ system = "autotools"
 multilib_support = false
 depends = ""
 configure_args = [ "" ]
+post_install = [ "" ]
+verbose = false
 ```
 
 Understand? And now if you created own packages repository, you can use them already without publishing somewhere and creating repository. This means you can just use local packages. How? In `/etc/rad/config.toml` you can add `overlays` massive in `[repo]` section. Just look:

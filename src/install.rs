@@ -14,18 +14,17 @@ use indicatif::{ProgressBar, ProgressStyle};
 use crate::meta::{write_meta, find_dependents};
 use crate::verbosity::is_verbose;
 
-fn spinner(msg: &str) -> Option<ProgressBar> {
-    if is_verbose() {
+fn spinner(msg: &str, verbose: bool) -> Option<ProgressBar> {
+    if is_verbose() || verbose {
         return None;
     }
     let pb = ProgressBar::new_spinner();
     pb.set_style(
         ProgressStyle::with_template("[{spinner:}] [rad] {msg}")
             .unwrap()
-            .tick_chars("\\|/--"),
-    );
+            .tick_chars(r"\|/- "),
     pb.set_message(msg.to_string());
-    pb.enable_steady_tick(Duration::from_millis(200));
+    pb.enable_steady_tick(Duration::from_millis(150));
     Some(pb)
 }
 
@@ -213,7 +212,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         
     // Now go register
     if going_install {
-        let pb = spinner(&format!("registering files for {}...", pkg.name));
+        let pb = spinner(&format!("registering files for {}...", pkg.name), pkg.verbose);
         if let Err(e) = register_package_files(&atom, &dest_dir) {
             eprintln!("[rad] registration error: {}", e);
         }
@@ -225,14 +224,14 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         }
     
         // And now merging
-        if let Err(e) = merge(&dest_dir, "/") {
+        if let Err(e) = merge(&dest_dir, "/", pkg.verbose) {
             eprintln!("[rad] {} {}", "merge error:".red(), e);
             processing.remove(&pkg.name);
             return Ok(());
         }
     }
     else{
-        if let Err(e) = merge(&dest_dir, &format!("{}/{}", &config.build.bin_cache_dir, pkg.name)) {
+        if let Err(e) = merge(&dest_dir, &format!("{}/{}", &config.build.bin_cache_dir, pkg.name), pkg.verbose) {
             eprintln!("[rad] {} {}", "merge error:".red(), e);
             processing.remove(&pkg.name);
             return Ok(());
@@ -261,6 +260,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
             run_cmd(
                 cmd,
                 &format!("post-installation step {}/{}: {}", i + 1, post_install.len(), cmd_str),
+                pkg.verbose,
             )?;
         }
     }
@@ -306,7 +306,7 @@ pub fn download_and_extract(pkg: &Package) -> Result<String, String> {
     {
         let mut cmd = Command::new("git");
         cmd.args(["clone", "--recursive", &pkg.source, &work_dir]);
-        run_cmd(cmd, &format!("cloning {}", pkg.source))?;
+        run_cmd(cmd, &format!("cloning {}", pkg.source), pkg.verbose)?;
         return Ok(work_dir);
     }
 
@@ -315,7 +315,7 @@ pub fn download_and_extract(pkg: &Package) -> Result<String, String> {
 
     let mut wget_cmd = Command::new("wget");
     wget_cmd.args(["-c", &pkg.source, "-O", &archive_path]);
-    run_cmd(wget_cmd, &format!("downloading {}", archive_name))?;
+    run_cmd(wget_cmd, &format!("downloading {}", archive_name), pkg.verbose)?;
 
     let extract_cmd = if archive_path.ends_with(".zip") {
         let mut c = Command::new("unzip");
@@ -326,7 +326,7 @@ pub fn download_and_extract(pkg: &Package) -> Result<String, String> {
         c.args(["-xf", &archive_path, "-C", &work_dir]);
         c
     };
-    run_cmd(extract_cmd, &format!("extracting {}", archive_name))?;
+    run_cmd(extract_cmd, &format!("extracting {}", archive_name), pkg.verbose)?;
 
     let versioned = format!("{}/{}-{}", work_dir, pkg.name, pkg.version);
     let plain = format!("{}/{}", work_dir, pkg.name);
@@ -375,7 +375,7 @@ pub fn build_and_install(
 
     match &pkg.build_system {
         BuildSystem::Autotools => {
-            if is_verbose() {
+            if is_verbose() || pkg.verbose {
                 println!("[rad] build system compiler: autotools");
             }
             let mut cmd = Command::new("./configure");
@@ -385,16 +385,17 @@ pub fn build_and_install(
             for arg in &current_configure_args {
                 cmd.arg(arg);
             }
-            run_cmd(cmd, "configure")?;
-            run_cmd(make_cmd(src_dir, &[&format!("-j{}", cores)]), "make")?;
+            run_cmd(cmd, "configure", pkg.verbose)?;
+            run_cmd(make_cmd(src_dir, &[&format!("-j{}", cores)]), "make", pkg.verbose)?;
             run_cmd(
                 make_cmd(src_dir, &[&format!("DESTDIR={}", dest_dir), "install"]),
                 "make install",
+                pkg.verbose,
             )?;
         }
 
         BuildSystem::Make => {
-            if is_verbose() {
+            if is_verbose() || pkg.verbose {
                 println!("[rad] build system compiler: make");
             }
             let mut args: Vec<String> = vec![format!("-j{}", cores)];
@@ -402,7 +403,7 @@ pub fn build_and_install(
                 args.push(arg.clone());
             }
             let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-            run_cmd(make_cmd(src_dir, &args_ref), "make")?;
+            run_cmd(make_cmd(src_dir, &args_ref), "make", pkg.verbose)?;
             run_cmd(
                 make_cmd(
                     src_dir,
@@ -413,11 +414,12 @@ pub fn build_and_install(
                     ],
                 ),
                 "make install",
+                pkg.verbose,
             )?;
         }
 
         BuildSystem::Cmake => {
-            if is_verbose() {
+            if is_verbose() || pkg.verbose {
                 println!("[rad] build system compiler: cmake/ninja");
             }
             let build_dir = format!("{}/build", src_dir);
@@ -436,13 +438,13 @@ pub fn build_and_install(
             for arg in &current_configure_args {
                 cmd.arg(arg);
             }
-            run_cmd(cmd, "cmake")?;
-            run_cmd(ninja_cmd(&build_dir, &["-j", &cores]), "ninja")?;
-            run_cmd(ninja_install_cmd(&build_dir, dest_dir), "ninja install")?;
+            run_cmd(cmd, "cmake", pkg.verbose)?;
+            run_cmd(ninja_cmd(&build_dir, &["-j", &cores]), "ninja", pkg.verbose)?;
+            run_cmd(ninja_install_cmd(&build_dir, dest_dir), "ninja install", pkg.verbose)?;
         }
 
         BuildSystem::Meson => {
-            if is_verbose() {
+            if is_verbose() || pkg.verbose {
                 println!("[rad] build system compiler: meson/ninja");
             }
             let build_dir = format!("{}/build", src_dir);
@@ -455,13 +457,13 @@ pub fn build_and_install(
             for arg in &current_configure_args {
                 cmd.arg(arg);
             }
-            run_cmd(cmd, "meson setup")?;
-            run_cmd(ninja_cmd(&build_dir, &["-j", &cores]), "ninja")?;
-            run_cmd(ninja_install_cmd(&build_dir, dest_dir), "ninja install")?;
+            run_cmd(cmd, "meson setup", pkg.verbose)?;
+            run_cmd(ninja_cmd(&build_dir, &["-j", &cores]), "ninja", pkg.verbose)?;
+            run_cmd(ninja_install_cmd(&build_dir, dest_dir), "ninja install", pkg.verbose)?;
         }
 
         BuildSystem::Cargo => {
-            if is_verbose() {
+            if is_verbose() || pkg.verbose {
                 println!("[rad] build system compiler: cargo");
             }
             let mut cmd = Command::new("cargo");
@@ -470,7 +472,7 @@ pub fn build_and_install(
                 .arg("--jobs")
                 .arg(cores)
                 .current_dir(src_dir);
-            run_cmd(cmd, "cargo build")?;
+            run_cmd(cmd, "cargo build", pkg.verbose)?;
             let bin_dest = format!("{}{}/bin", dest_dir, prefix);
             fs::create_dir_all(&bin_dest).unwrap();
             let bin_src = format!("{}/target/release/{}", src_dir, pkg.name);
@@ -479,20 +481,20 @@ pub fn build_and_install(
         }
 
         BuildSystem::Python => {
-            if is_verbose() {
+            if is_verbose() || pkg.verbose {
                 println!("[rad] build system compiler: python/pip");
             }
             let mut cmd = Command::new("pip");
             cmd.args(["install", "--prefix", prefix, "--root", dest_dir, "."])
                 .current_dir(src_dir);
-            run_cmd(cmd, "pip install")?;
+            run_cmd(cmd, "pip install", pkg.verbose)?;
         }
 
         BuildSystem::Manual {
             build_commands,
             install_commands,
         } => {
-            if is_verbose() {
+            if is_verbose() || pkg.verbose {
                 println!("[rad] build system: manual");
             }
             for (i, cmd_str) in build_commands.iter().enumerate() {
@@ -511,6 +513,7 @@ pub fn build_and_install(
                 run_cmd(
                     cmd,
                     &format!("build step {}/{}: {}", i + 1, build_commands.len(), cmd_str),
+                    pkg.verbose,
                 )?;
             }
             for (i, cmd_str) in install_commands.iter().enumerate() {
@@ -530,19 +533,21 @@ pub fn build_and_install(
                 run_cmd(
                     cmd,
                     &format!("install step {}/{}: {}", i + 1, install_commands.len(), cmd_str),
+                    pkg.verbose,
                 )?;
             }
         }
     }
 
-    if is_verbose() {
+    if is_verbose() || pkg.verbose {
         println!("[rad] build finished");
     }
     Ok(())
 }
 
-pub fn run_cmd(mut cmd: Command, label: &str) -> Result<(), String> {
-    if is_verbose() {
+pub fn run_cmd(mut cmd: Command, label: &str, verbose: bool) -> Result<(), String> {
+
+    if is_verbose() || verbose {
         println!("[rad] {}...", label);
         let status = cmd
             .status()
@@ -553,7 +558,7 @@ pub fn run_cmd(mut cmd: Command, label: &str) -> Result<(), String> {
         return Ok(());
     }
 
-    let pb = spinner(&format!("{}...", label));
+    let pb = spinner(&format!("{}...", label), verbose);
     let output = cmd
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -667,8 +672,8 @@ pub fn collect_files(root: &Path, current: &Path, manifest: &mut fs::File) -> st
     Ok(())
 }
 
-pub fn merge(dest_dir: &str, install_path: &str) -> Result<(), String> {
-    let pb = spinner("merging files...");
+pub fn merge(dest_dir: &str, install_path: &str, verbose: bool) -> Result<(), String> {
+    let pb = spinner("merging files...", verbose);
     let dest_path = Path::new(dest_dir);
     let result = merge_dir(dest_path, dest_path, Path::new(install_path))
         .map_err(|e| format!("merge failed: {}", e));
