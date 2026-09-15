@@ -90,7 +90,7 @@ name = "hello" # Package name ofc
 version = "2.12.1" # Package version, important for rad to update this package, please use this
 description = "GNU Hello - the classic greeting program" # Package description, you understand this
 source = "https://ftp.gnu.org/gnu/hello/hello-2.12.1.tar.gz" # Package source (required if 'unfree' is disabled)
-unfree = false
+unfree = false # If true, you are not chad and your package has closed source (-rep)
 
 [build] # This section describes how to compile/install this package
 system = "autotools" # The build compiler structure, available: autotools, python, cargo, make, cmake, meson, or manual (unique, this mean instead of 'configure_args' you need to fill in 'build_commands' and 'install_commands' sections)
