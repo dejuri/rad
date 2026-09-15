@@ -85,19 +85,20 @@ You might execute `rad -h` firstly, to see available arguments and how to use ra
 ## Examples
 Ok, you need now to understand how to describe own package. You can look for the examples in [repository](https://github.com/dejuri/radpkg), or look at this example of hello package, remember, they must be at .toml format, or rad won't find them
 ```toml
-[package]
-name = "hello"
-version = "2.12.1"
-description = "GNU Hello - the classic greeting program"
-source = "https://ftp.gnu.org/gnu/hello/hello-2.12.1.tar.gz"
+[package] # This section describes the package toml
+name = "hello" # Package name ofc
+version = "2.12.1" # Package version, important for rad to update this package, please use this
+description = "GNU Hello - the classic greeting program" # Package description, you understand this
+source = "https://ftp.gnu.org/gnu/hello/hello-2.12.1.tar.gz" # Package source (required if 'unfree' is disabled)
+unfree = false
 
-[build]
-system = "autotools"
-multilib_support = false
-depends = ""
-configure_args = [ "" ]
-post_install = [ "" ]
-verbose = false
+[build] # This section describes how to compile/install this package
+system = "autotools" # The build compiler structure, available: autotools, python, cargo, make, cmake, meson, or manual (unique, this mean instead of 'configure_args' you need to fill in 'build_commands' and 'install_commands' sections)
+multilib_support = false # If enabled, package will build two times (one for 32 bit, this is only multilib rad supports for now)
+depends = "" # Package dependencies, they can be specified as "this,way", or ["this", "massive", "WW"]
+configure_args = [ "" ] # Arguments for configure in different compilers
+post_install = [ "" ] # What to do after package installation if needed
+verbose = false # If enabled, this means forcing verbose output during package installation (which resolves the menuconfig issue)
 ```
 
 Understand? And now if you created own packages repository, you can use them already without publishing somewhere and creating repository. This means you can just use local packages. How? In `/etc/rad/config.toml` you can add `overlays` massive in `[repo]` section. Just look:
