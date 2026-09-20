@@ -122,18 +122,26 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
 
     // Package information
     println!("[rad] Building package {} ({})\n  \
-                    - Description: {}\n  \
-                    - Package origin: {}\n\
-                    {}", 
-                    atom.yellow(), 
-                    pkg.version.yellow(), 
-                    pkg.description, 
-                    origin_str, 
-                    if !pkg.unfree { format!("  - Package source: {}", pkg.source) } else { String::from("  - Package is proprietary!") });
-    if is_installed(&atom) && going_install {
-        println!("  - Installed version: {}", installed_meta.unwrap().version)
-    }
-    else { println!() }
+        - Description: {}\n  \
+        - Package origin: {}\n\
+        {}\n{}",
+        atom.yellow(), 
+        pkg.version.yellow(), 
+        pkg.description, 
+        origin_str, 
+        if !pkg.unfree {
+            format!("  - Package source: {}", pkg.source)
+        }
+        else {
+            String::from("  - Package is proprietary") 
+        },
+        if is_installed(&atom) && going_install {
+            format!("  - Installed version: {}", installed_meta.clone().unwrap().version)
+        }
+        else {
+            format!("  - Package is not installed")
+        }
+    );
 
     if !config.build.allow_unfree && pkg.unfree {
         println!(" \
