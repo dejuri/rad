@@ -1,19 +1,23 @@
 use crate::config::load_config;
 use crate::index;
-use colored::Colorize;
-use serde::Deserialize;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+use colored::Colorize;
+use serde::Deserialize;
+use regex::Regex;
 use crate::meta::read_meta;
+use crate::version;
+use crate::version::PackageSpec;
+use crate::version::Status;
 
 #[derive(Debug)]
 pub struct Package {
     pub name: String,
-    pub version: String,
+    pub version: Vec<String>,
     pub description: String,
-    pub source: String,
+    pub source: Vec<String>,
     pub unfree: bool,
     pub build_system: BuildSystem,
     pub depends: Vec<String>,
@@ -54,6 +58,7 @@ where
         None => Vec::new(),
         Some(StringOrVec::Vec(v)) => v.into_iter().filter(|s| !s.is_empty()).collect(),
         Some(StringOrVec::String(s)) => {
+            let s = s.trim();
             if s.is_empty() {
                 Vec::new()
             } else if s.contains(" && ") {
@@ -61,13 +66,13 @@ where
                     .map(|p| p.trim().to_string())
                     .filter(|p| !p.is_empty())
                     .collect()
-            } else {
-                let parts: Vec<String> = s
-                    .split(',')
+            } else if s.contains(',') {
+                s.split(',')
                     .map(|p| p.trim().to_string())
                     .filter(|p| !p.is_empty())
-                    .collect();
-                if parts.len() > 1 { parts } else { vec![s.trim().to_string()] }
+                    .collect()
+            } else {
+                vec![s.to_string()]
             }
         }
     })
@@ -92,21 +97,21 @@ where
 }
 
 #[derive(Debug, Deserialize, Default)]
-struct RawPackageSection {
+pub(crate) struct RawPackageSection {
     #[serde(default)]
     name: String,
-    #[serde(default)]
-    version: String,
+    #[serde(default, deserialize_with = "string_or_array", alias = "versions")]
+    version: Vec<String>,
     #[serde(default)]
     description: String,
-    #[serde(default)]
-    source: String,
+    #[serde(default, deserialize_with = "string_or_array", alias = "sources")]
+    source: Vec<String>,
     #[serde(default)]
     unfree: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
-struct RawBuildSection {
+pub(crate) struct RawBuildSection {
     #[serde(default)]
     system: String,
     #[serde(default, deserialize_with = "string_or_array")]
@@ -134,7 +139,20 @@ struct RawToml {
     #[serde(default)]
     build: RawBuildSection,
 }
+impl Package {
 
+    /// Get source for the corresponding version
+    pub fn get_source_for_version(&self, target_ver: &str) -> String {
+        if let Some(idx) = self.version.iter().position(|v| v == target_ver) {
+            self.source
+                .get(idx)
+                .cloned()
+                .unwrap_or_else(|| self.source.first().cloned().unwrap_or_default())
+        } else {
+            self.source.first().cloned().unwrap_or_default()
+        }
+    }
+}
 impl TryFrom<RawToml> for Package {
     type Error = String;
 
@@ -151,6 +169,9 @@ impl TryFrom<RawToml> for Package {
             return Err("field 'name' is required in [package]".to_string());
         }
 
+        if version.is_empty() {
+            return Err("field 'version' (or 'versions') is required in [package]".to_string());
+        }
         // Check source: needed only if unfree == false
         if !unfree && source.is_empty() {
             return Err("field 'source' is required in [package] when unfree is false".to_string());
@@ -237,6 +258,30 @@ pub fn fetch_package(pkg_name: &str) -> Result<String, String> {
     Ok(dest)
 }
 
+pub fn interpolate_cmd(cmd: &str, current_pkg: &Package, current_version: &str) -> String {
+    let result = cmd
+        .replace("{version}", current_version)
+        .replace("{name}", &current_pkg.name);
+
+    let re = Regex::new(r"\{([a-zA-Z0-9_\-]+/[a-zA-Z0-9_\-]+)\.([a-zA-Z0-9_]+)\}").unwrap();
+
+    re.replace_all(&result, |caps: &regex::Captures| {
+        let atom = &caps[1];
+        let field = &caps[2];
+
+        match field {
+            "version" => {
+                if let Some(installed_meta) = crate::meta::read_meta(atom) {
+                    installed_meta.version
+                } else {
+                    eprintln!("[rad] warning: package '{}' is not installed for placeholder substitution", atom);
+                    format!("{}-NOT-INSTALLED", atom)
+                }
+            }
+            _ => caps[0].to_string(),
+        }
+    }).to_string()
+}
 pub fn parse_package(path: &str) -> Result<Package, String> {
     let content = fs::read_to_string(path).map_err(|e| format!("cannot read {}: {}", path, e))?;
 
@@ -247,6 +292,15 @@ pub fn parse_package(path: &str) -> Result<Package, String> {
 }
 
 pub fn package_info(pkg_name: &str, local: bool, processing: &mut HashSet<String>) {
+    
+    // `name@version` (a local toml path is taken as it is)
+    let spec = if local {
+        PackageSpec { name: pkg_name, version: None }
+    } else {
+        PackageSpec::parse(pkg_name)
+    };
+    let pkg_name = spec.name;
+
     processing.insert(pkg_name.to_string());
 
     let config = load_config();
@@ -275,7 +329,7 @@ pub fn package_info(pkg_name: &str, local: bool, processing: &mut HashSet<String
         Err(e) => {
             eprintln!("[rad] {} {}", "parse error:".red(), e);
             processing.remove(pkg_name);
-            return;
+            return
         }
     };
 
@@ -305,33 +359,45 @@ pub fn package_info(pkg_name: &str, local: bool, processing: &mut HashSet<String
     };
 
     let meta = read_meta(&atom);
-
-    let installed_version_msg = if let Some(m) = meta {
-        let meta_file_path = format!("/var/lib/rad/meta/{}.toml", atom);
-        if Path::new(&meta_file_path).exists() {
-            if m.version == pkg.version {
-                format!(" = {}", m.version.green())
+    let pkg_latest_version = version::latest(&pkg.version)
+        .cloned()
+        .unwrap_or_default();
+    let target_version = version::latest(&pkg.version)
+        .cloned()
+        .unwrap_or_default();
+    let installed_version_msg = match meta {
+        Some(m) if Path::new(&format!("/var/lib/rad/meta/{}.toml", atom)).exists() => {
+            let status = version::status(&m.version, &pkg.version);
+            let shown = if pkg.version.contains(&m.version) {
+                format!(" = {}", m.version).green()
+            } else if status == Status::Outdated {
+                format!(" > {}", m.version).red()
             } else {
-                format!(" > {}", m.version.red())
+                format!(" > {}", m.version).yellow()
+            };
+            if status == Status::Upgradable {
+                format!("{} {}", shown, "[U]".yellow().bold())
+            } else {
+                shown.to_string()
             }
-        } else {
-            String::new()
         }
-    } else {
-        String::new()
+        _ => String::new(),
     };
 
+    let available_versions = version::sorted_desc(&pkg.version).join(", ");
+    let current_source = pkg.get_source_for_version(&target_version);
     println!(
         "[rad] Info about {}{}:\n  \
         - Description: {}\n  \
         - Package origin: {}\n\
-        {}  - Version: {}{}",
+        {}  - Version: {}{}; Available: {}",
         atom.yellow(),
         if pkg.unfree { " [PROPRIETARY]".red() } else { "".red() },
         pkg.description,
         source_desc,
-        if !pkg.unfree { format!("  - Package source: {}\n", pkg.source) } else { "".to_string() },
-        pkg.version,
-        installed_version_msg
+        if !pkg.unfree { format!("  - Package source: {}\n", current_source) } else { "".to_string() },
+        pkg_latest_version,
+        installed_version_msg,
+        format!("{}", available_versions.trim_end_matches('\n'))
     );
 }

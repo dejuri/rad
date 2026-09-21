@@ -1,6 +1,6 @@
 [package]
 name = "rad"
-version = "26.9.20"
+version = "26.9.21"
 edition = "2024"
 description = "Rad - package manager for Radian GNU/Linux and Linux From Scratch"
 
@@ -12,3 +12,4 @@ num_cpus = "1.17.0"
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
 pico-args = { version = "0.5.0", features = ["combined-flags"] }
 indicatif = "0.18.6"
+regex = "1.13.1"

@@ -1,6 +1,9 @@
 use crate::config::load_config;
-use crate::package::{BuildSystem, Package, fetch_package, parse_package};
+use crate::package::{BuildSystem, Package, fetch_package, parse_package, interpolate_cmd};
 use crate::index;
+use crate::version::{self, PackageSpec};
+use crate::meta::{write_meta, find_dependents};
+use crate::verbosity::is_verbose;
 use colored::Colorize;
 use std::collections::HashSet;
 use std::fs;
@@ -11,8 +14,6 @@ use std::process::{Command, Stdio};
 use std::io;
 use std::time::Duration;
 use indicatif::{ProgressBar, ProgressStyle};
-use crate::meta::{write_meta, find_dependents};
-use crate::verbosity::is_verbose;
 
 fn spinner(msg: &str, verbose: bool) -> Option<ProgressBar> {
     if is_verbose() || verbose {
@@ -30,7 +31,8 @@ fn spinner(msg: &str, verbose: bool) -> Option<ProgressBar> {
 }
 
 fn ask_to_install() -> io::Result<()> {
-    println!("[rad] Are you sure that you want install this package? Y/n");
+    print!("[rad] Are you sure that you want install this package? [Y/n]: ");
+    io::stdout().flush().unwrap();
     let mut buffer = String::new();
     match io::stdin().read_line(&mut buffer) {
         Ok(_) => {},
@@ -56,6 +58,14 @@ fn ask_to_install() -> io::Result<()> {
 pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool, going_install: bool, local: bool, processing: &mut HashSet<String>) -> Result<(), Box<dyn std::error::Error>> {
     let config = load_config();
 
+    // `name@version` (a local toml path is taken as it is)
+    let spec = if local {
+        PackageSpec { name: pkg_name, version: None }
+    } else {
+        PackageSpec::parse(pkg_name)
+    };
+    let pkg_name = spec.name;
+
     let rad_path = if local {
         let path = if pkg_name.ends_with(".toml") { pkg_name.to_string() } else { format!("{}.toml", pkg_name) };
         if !Path::new(&path).exists() {
@@ -80,7 +90,6 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
             return Ok(());
         }
     };
-
     let (atom, origin_str) = if local {
         (
             format!("local/{}", pkg.name),
@@ -108,29 +117,83 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
 
     let category = atom.rsplit_once('/').map(|(c, _)| c).unwrap_or("");
 
-    // Skip if the same version is installed
     let installed_meta = crate::meta::read_meta(&atom);
-    let needs_upgrade = match &installed_meta {
-        Some(m) => m.version != pkg.version,
-        None => false,
+
+    // You can specify package version with '@<ver>'
+    let _requested_pkg_name = match pkg_name.split_once('@') {
+        Some((name, ver)) => (name, Some(ver.to_string())),
+        None => (pkg_name, None),
     };
 
-    if installed_meta.is_some() && !needs_upgrade && !force {
-        println!("[rad] {} is already up to date ({})", atom.yellow(), pkg.version);
-        return Ok(());
-    }
+    let target_version = match spec.version {
+        Some(req_ver) => {
+            
+            // We will look up if the specified version is available
+            if pkg.version.contains(&req_ver.to_string()) {
+                req_ver.to_string()
+            } else {
+                eprintln!(
+                    "[rad] {} version '{}' is not available for package '{}'. Available: {}",
+                    "error:".red(),
+                    req_ver,
+                    pkg.name,
+                    pkg.version.join(", ")
+                );
+                processing.remove(pkg_name);
+                return Ok(());
+            }
+        }
+        None => {
+            // If no specified version, we will take the newest one
+            version::latest(&pkg.version)
+                .cloned()
+                .unwrap_or_default()
+        }
+    };
 
+    // We need to have the correct source for the version
+    let target_source = pkg.get_source_for_version(&target_version);
+    let installed_version = installed_meta.as_ref().map(|m| &m.version);
+    let has_same_version = installed_version.map_or(false, |ver| pkg.version.contains(ver));
+
+    // We look if there is the newest version
+    let newest = version::latest(&pkg.version);
+    let needs_upgrade = match (installed_version, newest) {
+        (Some(curr), Some(latest)) => curr != latest,
+        _ => false,
+    };
+
+    // Checking before building
+    if has_same_version && !needs_upgrade && !force {
+        println!(
+            "[rad] {} is already up to date ({})",
+            atom.yellow(),
+            target_version
+        );
+        processing.remove(pkg_name);
+        return Ok(());
+    } else if installed_version.is_some() && needs_upgrade {
+        if let Some(latest) = newest {
+            println!(
+                "[rad] {} {} is already installed, newer version available: {} {}",
+                atom.yellow(),
+                installed_version.unwrap(),
+                latest.green(),
+                "[U]".green().bold()
+            );
+        }
+    }
     // Package information
     println!("[rad] Building package {} ({})\n  \
         - Description: {}\n  \
         - Package origin: {}\n\
         {}\n{}",
         atom.yellow(), 
-        pkg.version.yellow(), 
+        target_version.yellow(), 
         pkg.description, 
         origin_str, 
         if !pkg.unfree {
-            format!("  - Package source: {}", pkg.source)
+            format!("  - Package source: {}", target_source)
         }
         else {
             String::from("  - Package is proprietary") 
@@ -225,7 +288,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         if let Err(e) = register_package_files(&atom, &dest_dir) {
             eprintln!("[rad] registration error: {}", e);
         }
-        if let Err(e) = write_meta(&atom, &pkg.version, category, &pkg.depends) {
+        if let Err(e) = write_meta(&atom, &target_version, category, &pkg.depends) {
             eprintln!("[rad] error writing meta: {}", e);
         }
         if let Some(pb) = pb {
@@ -257,10 +320,12 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
 
     if going_install {
         for (i, cmd_str) in post_install.iter().enumerate() {
+            let expanded_cmd = interpolate_cmd(cmd_str, &pkg, &target_version);
             let mut cmd = Command::new("sh");
-            cmd.arg("-c").arg(cmd_str);
+            cmd.arg("-c").arg(&expanded_cmd);
             cmd.env("LIBDIR", &current_libdir)
-            .env("RAD_CORES", &cores);
+            .env("RAD_CORES", &cores)
+            .env("RAD_VERSION", &target_version);
 
             if Path::new(&src_dir).exists() {
                 cmd.current_dir(&src_dir);
@@ -294,11 +359,27 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     if needs_upgrade && going_install {
         for dependent in find_dependents(&pkg.name) {
             println!("[rad] {} depends on updated {}, rebuilding", dependent, atom);
-            install_package(&dependent, prefix, true, false, true, false, processing)?;
+            let target = rebuild_target(&dependent);
+            install_package(&target, prefix, true, false, true, false, processing)?;
         }
     }
 
     Ok(())
+}
+
+fn rebuild_target(atom: &str) -> String {
+    let Some(installed) = crate::meta::read_meta(atom) else {
+        return atom.to_string();
+    };
+    let still_offered = fetch_package(atom)
+        .ok()
+        .and_then(|path| parse_package(&path).ok())
+        .is_some_and(|p| p.version.contains(&installed.version));
+    if still_offered {
+        format!("{}@{}", atom, installed.version)
+    } else {
+        atom.to_string()
+    }
 }
 
 pub fn download_and_extract(pkg: &Package) -> Result<String, String> {
@@ -310,34 +391,36 @@ pub fn download_and_extract(pkg: &Package) -> Result<String, String> {
         return Ok(work_dir);
     }
 
-    if pkg.source.ends_with(".git")
-        || (pkg.source.contains("github.com") && !pkg.source.contains(".tar"))
+    let source_url = pkg.source.first().cloned().unwrap_or_default();
+    let version_str = pkg.version.first().cloned().unwrap_or_default();
+
+    if source_url.ends_with(".git")
+        || (source_url.contains("github.com") && !source_url.contains(".tar"))
     {
-        let mut cmd = Command::new("git");
-        cmd.args(["clone", "--recursive", &pkg.source, &work_dir]);
-        run_cmd(cmd, &format!("cloning {}", pkg.source), pkg.verbose)?;
-        return Ok(work_dir);
-    }
-
-    let archive_name = pkg.source.split('/').next_back().unwrap_or("source.tar.gz");
-    let archive_path = format!("{}/{}", work_dir, archive_name);
-
-    let mut wget_cmd = Command::new("wget");
-    wget_cmd.args(["-c", &pkg.source, "-O", &archive_path]);
-    run_cmd(wget_cmd, &format!("downloading {}", archive_name), pkg.verbose)?;
-
-    let extract_cmd = if archive_path.ends_with(".zip") {
-        let mut c = Command::new("unzip");
-        c.args([&archive_path, "-d", &work_dir]);
-        c
+        let mut git_cmd = std::process::Command::new("git");
+        git_cmd.args(["clone", "--recursive", &source_url, &work_dir]);
+        run_cmd(git_cmd, &format!("cloning {}", source_url), pkg.verbose)?;
     } else {
-        let mut c = Command::new("tar");
-        c.args(["-xf", &archive_path, "-C", &work_dir]);
-        c
-    };
-    run_cmd(extract_cmd, &format!("extracting {}", archive_name), pkg.verbose)?;
+        let archive_name = source_url.split('/').next_back().unwrap_or("source.tar.gz");
+        let archive_path = format!("{}/{}", work_dir, archive_name);
 
-    let versioned = format!("{}/{}-{}", work_dir, pkg.name, pkg.version);
+        let mut wget_cmd = std::process::Command::new("wget");
+        wget_cmd.args(["-c", &source_url, "-O", &archive_path]);
+        run_cmd(wget_cmd, &format!("downloading {}", source_url), pkg.verbose)?;
+
+        let extract_cmd = if archive_path.ends_with(".zip") {
+            let mut c = std::process::Command::new("unzip");
+            c.args([&archive_path, "-d", &work_dir]);
+            c
+        } else {
+            let mut c = std::process::Command::new("tar");
+            c.args(["-xf", &archive_path, "-C", &work_dir]);
+            c
+        };
+
+        run_cmd(extract_cmd, &format!("extracting {}", archive_name), pkg.verbose)?;
+    }
+    let versioned = format!("{}/{}-{}", work_dir, pkg.name, version_str);
     let plain = format!("{}/{}", work_dir, pkg.name);
     if Path::new(&versioned).exists() {
         return Ok(versioned);
@@ -506,15 +589,19 @@ pub fn build_and_install(
             if is_verbose() || pkg.verbose {
                 println!("[rad] build system: manual");
             }
+            let target_version = version::latest(&pkg.version)
+                .cloned()
+                .unwrap_or_default();
             for (i, cmd_str) in build_commands.iter().enumerate() {
+                let expanded_cmd = interpolate_cmd(cmd_str, pkg, &target_version);
                 let mut cmd = Command::new("sh");
-                cmd.arg("-c").arg(cmd_str);
-
+                cmd.arg("-c").arg(&expanded_cmd);
                 if Path::new(src_dir).exists() {
                     cmd.current_dir(src_dir);
                 }
 
                 cmd.env("PREFIX", prefix)
+                    .env("RAD_VERSION", &target_version)
                     .env("LIBDIR", &current_libdir)
                     .env("IS_M32", if is_m32 { "1" } else { "0" })
                     .env("RAD_MULTILIB", if config.arch.multilib { "1" } else { "0" })
@@ -526,8 +613,9 @@ pub fn build_and_install(
                 )?;
             }
             for (i, cmd_str) in install_commands.iter().enumerate() {
+                let expanded_cmd = interpolate_cmd(cmd_str, pkg, &target_version);
                 let mut cmd = Command::new("sh");
-                cmd.arg("-c").arg(cmd_str);
+                cmd.arg("-c").arg(&expanded_cmd);
 
                 if Path::new(src_dir).exists() {
                     cmd.current_dir(src_dir);
@@ -535,6 +623,7 @@ pub fn build_and_install(
 
                 cmd.env("DESTDIR", dest_dir)
                     .env("PREFIX", prefix)
+                    .env("RAD_VERSION", &target_version)
                     .env("LIBDIR", &current_libdir)
                     .env("IS_M32", if is_m32 { "1" } else { "0" })
                     .env("RAD_MULTILIB", if config.arch.multilib { "1" } else { "0" })

@@ -67,15 +67,16 @@ fn main() {
                 -C, --clear-cache       clear rad cache and temporary files\n    \
                 -L, --list              list installed packages\n    \
                 -I, --info              info about rad on your system\n    \
-                -i, --install <pkg>     install a package\n    \
+                -i, --install <pkg>     install a package (newest version, or <pkg>@<version>)\n    \
                 -b, --build <pkg>       build package source without installing\n    \
                 -f, --force <pkg>       force package installation\n    \
                 -r, --remove  <pkg>     remove a package\n    \
-                -P, --pkg-info <pkg>    info about specific package\n\n  \
+                -P, --pkg-info <pkg>    info about specific package (also <pkg>@<version>)\n\n  \
             Options:\n    \
                 -l, --local             use path of local toml package (with -i, -f, -b and -P)\n    \
                 -v, --verbose           show full build command output instead of a progress bar\n\n  \
             Packages are searched in main repository and overlays\n    \
+            Choose a version with <pkg>@<version>, a prefix picks the newest match: rad -i linux@6.18\n    \
             Main repository: {}\n    \
             Overlays: {}",
             "Radian Automated TOML-packages Handler".bold(), version.yellow(), config.repo.url.yellow(), overlays_formatted.yellow()
