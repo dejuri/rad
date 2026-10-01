@@ -189,7 +189,7 @@ You can just make a system built with rad, a Radian, and i have a project and do
 ## Contact
 Also, if you are interested in this project, i may need your help, because i work at this alone and this takes pretty much time. You can contact me there:
 
-Telegram: https://t.me/@bloha_e25
+Telegram: https://t.me/bloha_e25
 Or mail: thyripgn@protonmail.com
 
 ## License
