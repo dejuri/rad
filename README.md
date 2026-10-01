@@ -2,19 +2,24 @@
 [![Stand With Ukraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/banner-direct-single.svg)](https://stand-with-ukraine.pp.ua)
 
 ![Logo](https://raw.githubusercontent.com/dejuri/rad/main/logo.png)
-# rad
 
-rad is a source-based package manager for Radian GNU/Linux and other LFS-built GNU/Linux systems based on using easy-writable toml package headers. It stands for writing an overlay with ability to edit packages flexible as high as on default LFS. It usually manages system packages built from source using TOML package headers, but you still can install binaries with it
+# rad
+rad is a source-based package manager designed for Radian GNU/Linux and other LFS-based (Linux From Scratch) GNU/Linux systems; it utilizes easy-to-edit package headers in TOML format. rad enables the creation of overlays and offers flexibility in package editing. This is actually LFS level of flexibility
+
+For me, i think you should not place 100% trust in any package repository. Actually we all know what one time happened on AUR repository. So just be careful. Remember: repositories are controlled by others, not always by you. This can sometimes lead to issues with drivers, libraries, and other stuff, as the contents of each repository are shaped by the subjective views and decisions of its maintainer
+
+So ok, rad usually manages system packages built from source using TOML package headers, also you still can install binaries with it, because the toml headers are almost a scripts, a little bit easier
 
 rad is abbreviation for Radian Automated TOML-packages Handler, though it is "rath"
 
 just when it combines with Slavic God Radogost, who is the God of trade and seafaring,
 even easier to call it just rad
 
-It stays for managing system packages, user ones is better to manage with [nix](https://github.com/NixOS/nix) or other
+It stays for managing system packages, user ones is better to manage with [nix](https://github.com/NixOS/nix) or other one package manager which doesn't corrupt system directories
+
+Actually, i have a subjective position and views about this topic, about repositories and much stuff. But you better know why you are reading this, don't you? If you are interested in this, read more below
 
 ## Installing GNU hello with rad
-
 https://github.com/user-attachments/assets/90540c83-8064-471c-ba42-5f467e151ce9
 
 ## Dependencies
@@ -78,10 +83,9 @@ That's all!
 rad -i rad
 ```
 
-
 ## To get help of the usage
-
 You might execute `rad -h` firstly, to see available arguments and how to use rad properly.
+
 ## Examples
 Ok, you need now to understand how to describe own package. You can look for the examples in [repository](https://github.com/dejuri/radpkg), or look at this example of hello package, remember, they must be at .toml format, or rad won't find them
 ```toml
@@ -174,14 +178,20 @@ rad -r <atom>
 ```
 ## Issues
 If you have an issue or some different bugs, create a [new issue](https://github.com/dejuri/radpkg/issues/new) please and describe what happened and i will see it
+
 ## What now?
 You better know why you've installed it. Remember, the code is open, i think you have rights to know what are you installing, yes?
 
 Ok, so what now, you can create your repository of packages, install it, and rad will control it, it is good. This is the stability.
 
 You can just make a system built with rad, a Radian, and i have a project and done some progress. I use it on desktop but it is a hard experience sometimes, don't forget that it is an experimental project for now. But still, good luck, comrade, do what you find needed in this
+
+## Contact
+Also, if you are interested in this project, i may need your help, because i work at this alone and this takes pretty much time. You can contact me there:
+
+Telegram: https://t.me/@bloha_e25
+Or mail: thyripgn@protonmail.com
+
 ## License
 
 [GPL 3.0](https://choosealicense.com/licenses/gpl-3.0/)
-
-
