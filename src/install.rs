@@ -242,7 +242,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         }
     }
 
-    let src_dir = match download_and_extract(&pkg) {
+    let src_dir = match download_and_extract(&pkg, &target_version) {
         Ok(d) => d,
         Err(e) => {
             eprintln!("[rad] {} {}", "error:".red(), e);
@@ -382,7 +382,7 @@ fn rebuild_target(atom: &str) -> String {
     }
 }
 
-pub fn download_and_extract(pkg: &Package) -> Result<String, String> {
+pub fn download_and_extract(pkg: &Package, target_version: &str) -> Result<String, String> {
     let work_dir = format!("/tmp/rad/build/{}", pkg.name);
     fs::create_dir_all(&work_dir).map_err(|e| format!("cannot create build dir: {}", e))?;
 
@@ -391,22 +391,22 @@ pub fn download_and_extract(pkg: &Package) -> Result<String, String> {
         return Ok(work_dir);
     }
 
-    let source_url = pkg.source.first().cloned().unwrap_or_default();
+    let target_source = pkg.get_source_for_version(&target_version);
     let version_str = pkg.version.first().cloned().unwrap_or_default();
 
-    if source_url.ends_with(".git")
-        || (source_url.contains("github.com") && !source_url.contains(".tar"))
+    if target_source.ends_with(".git")
+        || (target_source.contains("github.com") && !target_source.contains(".tar"))
     {
         let mut git_cmd = std::process::Command::new("git");
-        git_cmd.args(["clone", "--recursive", &source_url, &work_dir]);
-        run_cmd(git_cmd, &format!("cloning {}", source_url), pkg.verbose)?;
+        git_cmd.args(["clone", "--recursive", &target_source, &work_dir]);
+        run_cmd(git_cmd, &format!("cloning {}", target_source), pkg.verbose)?;
     } else {
-        let archive_name = source_url.split('/').next_back().unwrap_or("source.tar.gz");
+        let archive_name = target_source.split('/').next_back().unwrap_or("source.tar.gz");
         let archive_path = format!("{}/{}", work_dir, archive_name);
 
         let mut wget_cmd = std::process::Command::new("wget");
-        wget_cmd.args(["-c", &source_url, "-O", &archive_path]);
-        run_cmd(wget_cmd, &format!("downloading {}", source_url), pkg.verbose)?;
+        wget_cmd.args(["-c", &target_source, "-O", &archive_path]);
+        run_cmd(wget_cmd, &format!("downloading {}", target_source), pkg.verbose)?;
 
         let extract_cmd = if archive_path.ends_with(".zip") {
             let mut c = std::process::Command::new("unzip");
