@@ -177,7 +177,7 @@ Rad, like other basic package managers, can remove installed package (as root)
 rad -r <atom>
 ```
 ## Issues
-If you encounter a problem or find any errors, please create a new issue and describe what happened — I will review it 
+If you encounter a problem or find any errors, please create a [new issue](https://github.com/dejuri/radpkg/issues/new) and describe what happened — I will review it 
 
 ## What now?
 You better know why you've installed it. Remember, the code is open, i think you have rights to know what are you installing, yes?
