@@ -6,7 +6,7 @@
 # rad
 rad is a source-based package manager designed for Radian GNU/Linux and other LFS-based (Linux From Scratch) GNU/Linux systems; it utilizes easy-to-edit package headers in TOML format. rad enables the creation of overlays and offers flexibility in package editing. This is actually LFS level of flexibility
 
-For me, i think you should not place 100% trust in any package repository. Actually we all know what one time happened on AUR repository. So just be careful. Remember: repositories are controlled by others, not always by you. This can sometimes lead to issues with drivers, libraries, and other stuff, as the contents of each repository are shaped by the subjective views and decisions of its maintainer. And if we look in this way, rad is more flexible that portage, as it gives to you possibility to edit repository in very simple way
+For me, i think you should not place 100% trust in any package repository. Actually we all know what one time happened on AUR repository. So just be careful. Remember: repositories are controlled by others, not always by you. This can sometimes lead to problems with drivers, libraries, and other stuff, as the contents of each repository are shaped by the subjective views and decisions of its maintainer. And if we look in this way, rad is more flexible that portage, as it gives to you possibility to edit repository in very simple way
 
 So ok, rad is not a regular package manager. This utility helps to built your own repository, manage package versions and files, like a regular package manager. It solves the issue of untrust for centralized repository, and solves LFS issue of the system upgrading pain. And still rad usually manages system packages built from source using TOML package headers, and of course rad can install binaries, because the toml headers are almost a scripts, a little bit easier
 
@@ -177,7 +177,7 @@ Rad, like other basic package managers, can remove installed package (as root)
 rad -r <atom>
 ```
 ## Issues
-If you have an issue or some different bugs, create a [new issue](https://github.com/dejuri/radpkg/issues/new) please and describe what happened and i will see it
+If you encounter a problem or find any errors, please create a new issue and describe what happened — I will review it 
 
 ## What now?
 You better know why you've installed it. Remember, the code is open, i think you have rights to know what are you installing, yes?
