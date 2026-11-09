@@ -18,6 +18,7 @@ pub struct Package {
     pub version: Vec<String>,
     pub description: String,
     pub source: Vec<String>,
+    pub sha256: Vec<String>,
     pub unfree: bool,
     pub build_system: BuildSystem,
     pub depends: Vec<String>,
@@ -106,6 +107,8 @@ pub(crate) struct RawPackageSection {
     description: String,
     #[serde(default, deserialize_with = "string_or_array", alias = "sources")]
     source: Vec<String>,
+    #[serde(default, deserialize_with = "string_or_array", alias = "hash")]
+    sha256: Vec<String>,
     #[serde(default)]
     unfree: bool,
 }
@@ -152,6 +155,12 @@ impl Package {
             self.source.first().cloned().unwrap_or_default()
         }
     }
+    
+    /// Same for sha256
+    pub fn get_sha256_for_version(&self, target_ver: &str) -> Option<String> {
+        let idx = self.version.iter().position(|v| v == target_ver).unwrap_or(0);
+        self.sha256.get(idx).map(|s| s.trim().to_lowercase())
+    }
 }
 impl TryFrom<RawToml> for Package {
     type Error = String;
@@ -162,6 +171,7 @@ impl TryFrom<RawToml> for Package {
             version,
             description,
             source,
+            sha256,
             unfree,
         } = raw.package;
 
@@ -216,6 +226,7 @@ impl TryFrom<RawToml> for Package {
             version,
             description,
             source,
+            sha256,
             unfree,
             build_system,
             depends,

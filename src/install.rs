@@ -7,13 +7,14 @@ use crate::verbosity::is_verbose;
 use colored::Colorize;
 use std::collections::HashSet;
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::os::unix::fs as unix_fs;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::io;
 use std::time::Duration;
 use indicatif::{ProgressBar, ProgressStyle};
+use sha2::{Digest, Sha256};
 
 fn spinner(msg: &str, verbose: bool) -> Option<ProgressBar> {
     if is_verbose() || verbose {
@@ -381,7 +382,35 @@ fn rebuild_target(atom: &str) -> String {
         atom.to_string()
     }
 }
-
+fn sha256_file(path: &str) -> io::Result<String> {
+    let mut f = fs::File::open(path)?;
+    let mut h = Sha256::new();
+    let mut buf = [0u8; 64 * 1024];
+    loop {
+        let n = f.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        h.update(&buf[..n]);
+    }
+    Ok(hex::encode(h.finalize()))
+}
+/// Mismatch is always an error; a missing hash is only a warning for now.
+fn verify_archive(pkg: &Package, path: &str, target_version: &str) -> Result<(), String> {
+    let Some(expected) = pkg.get_sha256_for_version(target_version) else {
+        eprintln!("[rad] {} {} has no sha256, source is not verified", "warning:".yellow(), pkg.name);
+        return Ok(());
+    };
+    let got = sha256_file(path).map_err(|e| format!("cannot hash {}: {}", path, e))?;
+    if got != expected {
+        let _ = fs::remove_file(path); // otherwise `wget -c` resumes the bad file
+        return Err(format!(
+            "sha256 mismatch for {}\n  expected: {}\n  got:      {}",
+            pkg.name, expected, got
+        ));
+    }
+    Ok(())
+}
 pub fn download_and_extract(pkg: &Package, target_version: &str) -> Result<String, String> {
     let work_dir = format!("/tmp/rad/build/{}", pkg.name);
     fs::create_dir_all(&work_dir).map_err(|e| format!("cannot create build dir: {}", e))?;
@@ -407,6 +436,7 @@ pub fn download_and_extract(pkg: &Package, target_version: &str) -> Result<Strin
         let mut wget_cmd = std::process::Command::new("wget");
         wget_cmd.args(["-c", &target_source, "-O", &archive_path]);
         run_cmd(wget_cmd, &format!("downloading {}", target_source), pkg.verbose)?;
+        verify_archive(pkg, &archive_path, target_version)?;
 
         let extract_cmd = if archive_path.ends_with(".zip") {
             let mut c = std::process::Command::new("unzip");
