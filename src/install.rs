@@ -395,7 +395,7 @@ fn sha256_file(path: &str) -> io::Result<String> {
     }
     Ok(hex::encode(h.finalize()))
 }
-/// Mismatch is always an error; a missing hash is only a warning for now.
+/// Mismatch is always an error; a missing hash is only a warning for now
 fn verify_archive(pkg: &Package, path: &str, target_version: &str) -> Result<(), String> {
     let Some(expected) = pkg.get_sha256_for_version(target_version) else {
         eprintln!("[rad] {} {} has no sha256, source is not verified", "warning:".yellow(), pkg.name);
@@ -403,12 +403,13 @@ fn verify_archive(pkg: &Package, path: &str, target_version: &str) -> Result<(),
     };
     let got = sha256_file(path).map_err(|e| format!("cannot hash {}: {}", path, e))?;
     if got != expected {
-        let _ = fs::remove_file(path); // otherwise `wget -c` resumes the bad file
+        let _ = fs::remove_file(path);
         return Err(format!(
             "sha256 mismatch for {}\n  expected: {}\n  got:      {}",
             pkg.name, expected, got
         ));
     }
+    println!("[rad] source is verified, good comrade");
     Ok(())
 }
 pub fn download_and_extract(pkg: &Package, target_version: &str) -> Result<String, String> {
@@ -417,6 +418,7 @@ pub fn download_and_extract(pkg: &Package, target_version: &str) -> Result<Strin
 
     // Skip downloading if no source
     if pkg.source.is_empty() {
+        println!("[rad] {} {} is proprietary and has no specified sha256, source is not verified", "warning:".yellow(), pkg.name);
         return Ok(work_dir);
     }
 
