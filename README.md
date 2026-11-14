@@ -174,7 +174,7 @@ You will get the list of installed files. It also supports symlinks, don't worry
 
 Rad, like other basic package managers, can remove installed package (as root)
 ```sh
-rad -r <atom>
+rad -C <atom>
 ```
 ## Issues
 If you encounter a problem or find any errors, please create a [new issue](https://github.com/dejuri/radpkg/issues/new) and describe what happened — I will review it 
