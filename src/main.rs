@@ -33,8 +33,7 @@ fn main() {
 
     if env::args().len() < 2 {
         eprintln!(
-            "[rad] {} please specify a valid argument, use -h or --help",
-            "error:".red()
+            "[rad] Comrade, please specify a valid argument, use -h or --help"
         );
         return;
     }
@@ -46,7 +45,8 @@ fn main() {
     let info = pargs.contains(["-I", "--info"]);
     let ver = pargs.contains(["-V", "--version"]);
     let sync = pargs.contains(["-s", "--sync"]);
-    let clear = pargs.contains(["-C", "--clear-cache"]);
+    let remove_pkg: Option<String> = pargs.opt_value_from_str(["-C", "--clear"]).ok().flatten();
+    let clear = pargs.contains(["-C", "--clear"]);
     let list = pargs.contains(["-L", "--list"]);
     let hello = pargs.contains("--hello");
     let local = pargs.contains(["-l", "--local"]);
@@ -54,7 +54,7 @@ fn main() {
     let force_pkg: Option<String> = pargs.opt_value_from_str(["-f", "--force"]).ok().flatten();
     let build_pkg: Option<String> = pargs.opt_value_from_str(["-b", "--build"]).ok().flatten();
     let pkg_info: Option<String> = pargs.opt_value_from_str(["-P", "--pkg-info"]).ok().flatten();
-    let remove_pkg: Option<String> = pargs.opt_value_from_str(["-r", "--remove"]).ok().flatten();
+    
 
     if help {
         println!(
@@ -64,13 +64,12 @@ fn main() {
                 -h, --help              print this menu\n    \
                 -V, --version           print rad version\n    \
                 -s, --sync              sync package index of current repository\n    \
-                -C, --clear-cache       clear rad cache and temporary files\n    \
                 -L, --list              list installed packages\n    \
                 -I, --info              info about rad on your system\n    \
+                -C, --clear (<pkg>)     clear rad cache or package files if specified\n    \
                 -i, --install <pkg>     install a package (newest version, or <pkg>@<version>)\n    \
                 -b, --build <pkg>       build package source without installing\n    \
                 -f, --force <pkg>       force package installation\n    \
-                -r, --remove  <pkg>     remove a package\n    \
                 -P, --pkg-info <pkg>    info about specific package (also <pkg>@<version>)\n\n  \
             Options:\n    \
                 -l, --local             use path of local toml package (with -i, -f, -b and -P)\n    \
@@ -117,6 +116,10 @@ fn main() {
             } else {
                 println!("[rad] {} is local, nothing to sync", src);
             }
+        }
+    } else if let Some(ref name) = remove_pkg {
+        if let Err(e) = remove_package(&name) {
+            eprintln!("[rad] {} {}", "removal error:".red(), e);
         }
     } else if clear {
         println!("[rad] clearing cache and build remains");
@@ -168,10 +171,6 @@ fn main() {
     } else if let Some(name) = pkg_info {
         let mut processing = HashSet::new();
         package_info(&name, local, &mut processing);
-    } else if let Some(name) = remove_pkg {
-        if let Err(e) = remove_package(&name) {
-            eprintln!("[rad] {} {}", "removal error:".red(), e);
-        }
     } else {
         eprintln!(
             "[rad] {} try -h or --help to learn how to specify arguments correctly",
