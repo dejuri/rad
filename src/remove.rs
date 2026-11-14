@@ -12,7 +12,7 @@ pub fn clear_cache() {
     if Path::new("/tmp/rad").exists() {
         match fs::remove_dir_all("/tmp/rad") {
             Ok(_) => println!("[rad] succesfully removed {}", "/tmp/rad".yellow()),
-            Err(e) => eprintln!("[rad] {} couldn't remove {}: {}", "error:".red(), "/tmp/rad".yellow(), e),
+            Err(e) => eprintln!("[rad] {} couldn't remove {}: {}", "Error:".red(), "/tmp/rad".yellow(), e),
         }
     }
     else {
@@ -21,7 +21,7 @@ pub fn clear_cache() {
     if Path::new(&config.build.bin_cache_dir).exists() {
         match fs::remove_dir_all(&config.build.bin_cache_dir) {
             Ok(_) => println!("[rad] succesfully removed {}", config.build.bin_cache_dir.yellow()),
-            Err(e) => eprintln!("[rad] {} couldn't remove {}: {}", "error:".red(), config.build.bin_cache_dir.yellow(), e),
+            Err(e) => eprintln!("[rad] {} couldn't remove {}: {}", "Error:".red(), config.build.bin_cache_dir.yellow(), e),
         }
     }
     else {
@@ -35,15 +35,15 @@ fn ask_to_remove() -> io::Result<()> {
     let mut buffer = String::new();
     match io::stdin().read_line(&mut buffer) {
         Ok(_) => {},
-        Err(error) => println!("[rad] {} {}", "error:".red(), error),
+        Err(error) => println!("[rad] {} {}", "Error:".red(), error),
     }
     match buffer.trim() {
         "y" | "Y" => {
-            println!("[rad] Ok, comrade, continuing");
+            println!("[rad] Ok, Comrade, continuing");
             return Ok(()); 
         }
         "n" | "N" => {
-            println!("[rad] Ok, comrade, aborting");
+            println!("[rad] Ok, Comrade, aborting");
             std::process::exit(0);     
         }
         _ => {
@@ -156,7 +156,7 @@ pub fn remove_package(input_name: &str) -> std::io::Result<()> {
     let pkg_atom = match resolve_package_atom(input_name) {
         Some(atom) => atom,
         None => {
-            println!("[rad] {} package '{}' is not installed", "error:".red(), input_name);
+            println!("[rad] {} package '{}' is not installed", "Error:".red(), input_name);
             return Ok(());
         }
     };
@@ -200,7 +200,7 @@ pub fn remove_package(input_name: &str) -> std::io::Result<()> {
                     removed += 1;
                     prune_empty_dirs(path);
                 }
-                Err(e) => eprintln!("[rad] {} could not remove {}: {}", "error:".red(), line, e),
+                Err(e) => eprintln!("[rad] {} could not remove {}: {}", "Error:".red(), line, e),
             }
         }
     }

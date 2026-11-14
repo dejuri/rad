@@ -319,7 +319,7 @@ pub fn package_info(pkg_name: &str, local: bool, processing: &mut HashSet<String
     let rad_path = if local {
         let path = if pkg_name.ends_with(".toml") { pkg_name.to_string() } else { format!("{}.toml", pkg_name) };
         if !Path::new(&path).exists() {
-            eprintln!("[rad] {} local package file not found: {}", "error:".red(), path);
+            eprintln!("[rad] {} local package file not found: {}", "Error:".red(), path);
             processing.remove(pkg_name);
             return;
         }
@@ -328,7 +328,7 @@ pub fn package_info(pkg_name: &str, local: bool, processing: &mut HashSet<String
         match fetch_package(pkg_name) {
             Ok(p) => p,
             Err(e) => {
-                eprintln!("[rad] {} {}", "error:".red(), e);
+                eprintln!("[rad] {} {}", "Error:".red(), e);
                 processing.remove(pkg_name);
                 return;
             }
@@ -362,7 +362,7 @@ pub fn package_info(pkg_name: &str, local: bool, processing: &mut HashSet<String
                 (a, desc)
             }
             Err(e) => {
-                eprintln!("[rad] {} {}", "error:".red(), e);
+                eprintln!("[rad] {} {}", "Error:".red(), e);
                 processing.remove(pkg_name);
                 return;
             }

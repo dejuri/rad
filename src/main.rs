@@ -111,7 +111,7 @@ fn main() {
             if src.starts_with("http://") || src.starts_with("https://") {
                 match rad::index::refresh_overlay_index(&src) {
                     Ok(_) => println!("[rad] index updated: {}", src),
-                    Err(e) => eprintln!("[rad] {} {} ({})", "error:".red(), e, src),
+                    Err(e) => eprintln!("[rad] {} {} ({})", "Error:".red(), e, src),
                 }
             } else {
                 println!("[rad] {} is local, nothing to sync", src);
@@ -174,7 +174,7 @@ fn main() {
     } else {
         eprintln!(
             "[rad] {} try -h or --help to learn how to specify arguments correctly",
-            "error:".red()
+            "Error:".red()
         );
     }
 }

@@ -7,7 +7,7 @@ description = "Rad - package manager for Radian GNU/Linux and Linux From Scratch
 [dependencies]
 colored = "3.1.1"
 serde = { version = "1.0.228", features = ["derive"] }
-toml = "1.2.1+spec-1.1.0"
+toml = "1.2.1"
 num_cpus = "1.17.0"
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
 pico-args = { version = "0.5.0", features = ["combined-flags"] }

@@ -37,15 +37,15 @@ fn ask_to_install() -> io::Result<()> {
     let mut buffer = String::new();
     match io::stdin().read_line(&mut buffer) {
         Ok(_) => {},
-        Err(error) => println!("[rad] {} {}", "error:".red(), error),
+        Err(error) => println!("[rad] {} {}", "Error:".red(), error),
     }
     match buffer.trim() {
         "y" | "Y" => {
-            println!("[rad] Ok, comrade, continuing");
+            println!("[rad] Ok, Comrade, continuing");
             return Ok(()); 
         }
         "n" | "N" => {
-            println!("[rad] Ok, comrade, aborting");
+            println!("[rad] Ok, Comrade, aborting");
             std::process::exit(0);     
         }
         _ => {
@@ -70,7 +70,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     let rad_path = if local {
         let path = if pkg_name.ends_with(".toml") { pkg_name.to_string() } else { format!("{}.toml", pkg_name) };
         if !Path::new(&path).exists() {
-            eprintln!("[rad] {} local package file not found: {}", "error:".red(), path);
+            eprintln!("[rad] {} local package file not found: {}", "Error:".red(), path);
             return Ok(());
         }
         path
@@ -78,7 +78,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         match fetch_package(pkg_name) {
             Ok(p) => p,
             Err(e) => {
-                eprintln!("[rad] {} {}", "error:".red(), e);
+                eprintln!("[rad] {} {}", "Error:".red(), e);
                 return Ok(());
             }
         }
@@ -87,7 +87,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     let pkg = match parse_package(&rad_path) {
         Ok(p) => p,
         Err(e) => {
-            eprintln!("[rad] {} {}", "parse error:".red(), e);
+            eprintln!("[rad] {} {}", "Parse error:".red(), e);
             return Ok(());
         }
     };
@@ -109,7 +109,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
                 (a, desc)
             }
             Err(e) => {
-                eprintln!("[rad] {} {}", "error:".red(), e);
+                eprintln!("[rad] {} {}", "Error:".red(), e);
                 processing.remove(pkg_name);
                 return Ok(());
             }
@@ -135,7 +135,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
             } else {
                 eprintln!(
                     "[rad] {} version '{}' is not available for package '{}'. Available: {}",
-                    "error:".red(),
+                    "Error:".red(),
                     req_ver,
                     pkg.name,
                     pkg.version.join(", ")
@@ -186,7 +186,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     }
     // Package information
     println!("[rad] Building package {} ({})\n  \
-        - Description: {}\n  \
+        - {}\n  \
         - Package origin: {}\n\
         {}\n{}",
         atom.yellow(), 
@@ -197,7 +197,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
             format!("  - Package source: {}", target_source)
         }
         else {
-            String::from("  - Package is proprietary") 
+            format!("{}", "  - Package is proprietary".red())
         },
         if is_installed(&atom) && going_install {
             format!("  - Installed version: {}", installed_meta.clone().unwrap().version)
@@ -209,11 +209,11 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
 
     if !config.build.allow_unfree && pkg.unfree {
         println!(" \
-            [rad] {} This package is marked as proprietary! You can install this at your own risk,\n  \
+            [rad] {} This package is marked as proprietary! You install this at your own risk,\n  \
             to allow rad installing proprietary packages, change the next option in {} to true:\n\n    \
             {}\n    \
             {} = true\n\n  \
-            You was warned, that you have no warranty for this. You are on your own, good luck", "error:".red(), "/etc/rad/config.toml".bold(), "[build]".bold(), "allow_unfree".blue()
+            You was warned, that you have no warranty for this. You are on your own, good luck", "Error:".red(), "/etc/rad/config.toml".bold(), "[build]".bold(), "allow_unfree".blue()
         );
 
         std::process::exit(1);
@@ -225,7 +225,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     if processing.contains(&pkg.name) {
         eprintln!(
             "[rad] {} circular dependency detected: {}!",
-            "error:".red(),
+            "Error:".red(),
             atom.yellow()
         );
         return Ok(());
@@ -246,7 +246,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     let src_dir = match download_and_extract(&pkg, &target_version) {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("[rad] {} {}", "error:".red(), e);
+            eprintln!("[rad] {} {}", "Error:".red(), e);
             processing.remove(&pkg.name);
             return Ok(());
         }
@@ -265,7 +265,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
 
     // 32 bit build if needed
     if config.arch.multilib && pkg.multilib_support {
-        println!("[rad] this package is multilib, so i build 32-bit version now");
+        println!("[rad] This package is multilib, so i build 32-bit version now");
         if let Err(e) = build_and_install(&pkg, &src_dir, prefix, &dest_dir, true) {
             eprintln!("[rad] {} {}", "multilib build error:".red(), e);
             processing.remove(&pkg.name);
@@ -285,12 +285,12 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         
     // Now go register
     if going_install {
-        let pb = spinner(&format!("registering files for {}...", pkg.name), pkg.verbose);
+        let pb = spinner(&format!("Registering files for {}...", pkg.name), pkg.verbose);
         if let Err(e) = register_package_files(&atom, &dest_dir) {
-            eprintln!("[rad] registration error: {}", e);
+            eprintln!("[rad] Registration error: {}", e);
         }
         if let Err(e) = write_meta(&atom, &target_version, category, &pkg.depends) {
-            eprintln!("[rad] error writing meta: {}", e);
+            eprintln!("[rad] Error writing meta: {}", e);
         }
         if let Some(pb) = pb {
             pb.finish_and_clear();
@@ -351,10 +351,10 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
 
     processing.remove(&pkg.name);
     if going_install {
-        println!("[rad] installation of {} finished successfully", atom.yellow());
+        println!("[rad] Installation of {} finished successfully", atom.yellow());
     }
     else {
-        println!("[rad] building binary of {} finished successfully", atom.yellow());
+        println!("[rad] Building binary of {} finished successfully", atom.yellow());
     }
 
     if needs_upgrade && going_install {
@@ -398,7 +398,7 @@ fn sha256_file(path: &str) -> io::Result<String> {
 /// Mismatch is always an error; a missing hash is only a warning for now
 fn verify_archive(pkg: &Package, path: &str, target_version: &str) -> Result<(), String> {
     let Some(expected) = pkg.get_sha256_for_version(target_version) else {
-        eprintln!("[rad] {} {} has no sha256, source is not verified", "warning:".yellow(), pkg.name);
+        eprintln!("[rad] {} {} has no sha256, source is not verified", "Warning:".yellow(), pkg.name);
         return Ok(());
     };
     let got = sha256_file(path).map_err(|e| format!("cannot hash {}: {}", path, e))?;
@@ -409,7 +409,7 @@ fn verify_archive(pkg: &Package, path: &str, target_version: &str) -> Result<(),
             pkg.name, expected, got
         ));
     }
-    println!("[rad] source is verified, good comrade");
+    println!("[rad] Source is verified, good Comrade");
     Ok(())
 }
 pub fn download_and_extract(pkg: &Package, target_version: &str) -> Result<String, String> {
@@ -418,7 +418,7 @@ pub fn download_and_extract(pkg: &Package, target_version: &str) -> Result<Strin
 
     // Skip downloading if no source
     if pkg.source.is_empty() {
-        println!("[rad] {} {} is proprietary and has no specified sha256, source is not verified", "warning:".yellow(), pkg.name);
+        println!("[rad] {} {} is proprietary and has no specified sha256, source is not verified", "Warning:".yellow(), pkg.name);
         return Ok(work_dir);
     }
 
@@ -430,14 +430,14 @@ pub fn download_and_extract(pkg: &Package, target_version: &str) -> Result<Strin
     {
         let mut git_cmd = std::process::Command::new("git");
         git_cmd.args(["clone", "--recursive", &target_source, &work_dir]);
-        run_cmd(git_cmd, &format!("cloning {}", target_source), pkg.verbose)?;
+        run_cmd(git_cmd, &format!("Cloning {}", target_source), pkg.verbose)?;
     } else {
         let archive_name = target_source.split('/').next_back().unwrap_or("source.tar.gz");
         let archive_path = format!("{}/{}", work_dir, archive_name);
 
         let mut wget_cmd = std::process::Command::new("wget");
         wget_cmd.args(["-c", &target_source, "-O", &archive_path]);
-        run_cmd(wget_cmd, &format!("downloading {}", target_source), pkg.verbose)?;
+        run_cmd(wget_cmd, &format!("Downloading {}", target_source), pkg.verbose)?;
         verify_archive(pkg, &archive_path, target_version)?;
 
         let extract_cmd = if archive_path.ends_with(".zip") {
@@ -450,7 +450,7 @@ pub fn download_and_extract(pkg: &Package, target_version: &str) -> Result<Strin
             c
         };
 
-        run_cmd(extract_cmd, &format!("extracting {}", archive_name), pkg.verbose)?;
+        run_cmd(extract_cmd, &format!("Extracting {}", archive_name), pkg.verbose)?;
     }
     let versioned = format!("{}/{}-{}", work_dir, pkg.name, version_str);
     let plain = format!("{}/{}", work_dir, pkg.name);
@@ -466,7 +466,7 @@ pub fn download_and_extract(pkg: &Package, target_version: &str) -> Result<Strin
         .flatten()
         .find(|e| e.path().is_dir())
         .map(|e| e.path().to_string_lossy().to_string())
-        .ok_or_else(|| "could not find extracted source directory".to_string())
+        .ok_or_else(|| "Could not find extracted source directory".to_string())
 }
 
 pub fn build_and_install(
@@ -487,7 +487,7 @@ pub fn build_and_install(
     };
 
     if is_m32 {
-        println!("[rad] building 32-bit version of {}", pkg.name);
+        println!("[rad] Building 32-bit version of {}", pkg.name);
         current_libdir = format!("{}/lib32", prefix);
         current_configure_args.push("--libdir=/usr/lib32".into());
         current_configure_args.push("CFLAGS=-m32".into());
@@ -500,7 +500,7 @@ pub fn build_and_install(
     match &pkg.build_system {
         BuildSystem::Autotools => {
             if is_verbose() || pkg.verbose {
-                println!("[rad] build system compiler: autotools");
+                println!("[rad] Build system compiler: autotools");
             }
             let mut cmd = Command::new("./configure");
             cmd.arg(format!("--prefix={}", prefix))
@@ -509,10 +509,10 @@ pub fn build_and_install(
             for arg in &current_configure_args {
                 cmd.arg(arg);
             }
-            run_cmd(cmd, "configure", pkg.verbose)?;
-            run_cmd(make_cmd(src_dir, &[&format!("-j{}", cores)]), "make", pkg.verbose)?;
+            run_cmd(cmd, "Configure", pkg.verbose)?;
+            run_cmd(make_cmd(src_dir, &[&format!("-j{}", cores)]), "Make", pkg.verbose)?;
             run_cmd(
-                make_cmd(src_dir, &[&format!("DESTDIR={}", dest_dir), "install"]),
+                make_cmd(src_dir, &[&format!("DESTDIR={}", dest_dir), "Install"]),
                 "make install",
                 pkg.verbose,
             )?;
@@ -520,14 +520,14 @@ pub fn build_and_install(
 
         BuildSystem::Make => {
             if is_verbose() || pkg.verbose {
-                println!("[rad] build system compiler: make");
+                println!("[rad] Build system compiler: make");
             }
             let mut args: Vec<String> = vec![format!("-j{}", cores)];
             for arg in &current_configure_args {
                 args.push(arg.clone());
             }
             let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-            run_cmd(make_cmd(src_dir, &args_ref), "make", pkg.verbose)?;
+            run_cmd(make_cmd(src_dir, &args_ref), "Make", pkg.verbose)?;
             run_cmd(
                 make_cmd(
                     src_dir,
@@ -537,14 +537,14 @@ pub fn build_and_install(
                         "install",
                     ],
                 ),
-                "make install",
+                "Install",
                 pkg.verbose,
             )?;
         }
 
         BuildSystem::Cmake => {
             if is_verbose() || pkg.verbose {
-                println!("[rad] build system compiler: cmake/ninja");
+                println!("[rad] Build system compiler: cmake/ninja");
             }
             let build_dir = format!("{}/build", src_dir);
             let _ = fs::remove_dir_all(&build_dir);
@@ -562,14 +562,14 @@ pub fn build_and_install(
             for arg in &current_configure_args {
                 cmd.arg(arg);
             }
-            run_cmd(cmd, "cmake", pkg.verbose)?;
-            run_cmd(ninja_cmd(&build_dir, &["-j", &cores]), "ninja", pkg.verbose)?;
-            run_cmd(ninja_install_cmd(&build_dir, dest_dir), "ninja install", pkg.verbose)?;
+            run_cmd(cmd, "Cmake", pkg.verbose)?;
+            run_cmd(ninja_cmd(&build_dir, &["-j", &cores]), "Ninja", pkg.verbose)?;
+            run_cmd(ninja_install_cmd(&build_dir, dest_dir), "Install", pkg.verbose)?;
         }
 
         BuildSystem::Meson => {
             if is_verbose() || pkg.verbose {
-                println!("[rad] build system compiler: meson/ninja");
+                println!("[rad] Build system compiler: meson/ninja");
             }
             let build_dir = format!("{}/build", src_dir);
             let mut cmd = Command::new("meson");
@@ -581,14 +581,14 @@ pub fn build_and_install(
             for arg in &current_configure_args {
                 cmd.arg(arg);
             }
-            run_cmd(cmd, "meson setup", pkg.verbose)?;
-            run_cmd(ninja_cmd(&build_dir, &["-j", &cores]), "ninja", pkg.verbose)?;
-            run_cmd(ninja_install_cmd(&build_dir, dest_dir), "ninja install", pkg.verbose)?;
+            run_cmd(cmd, "Meson", pkg.verbose)?;
+            run_cmd(ninja_cmd(&build_dir, &["-j", &cores]), "Ninja", pkg.verbose)?;
+            run_cmd(ninja_install_cmd(&build_dir, dest_dir), "Install", pkg.verbose)?;
         }
 
         BuildSystem::Cargo => {
             if is_verbose() || pkg.verbose {
-                println!("[rad] build system compiler: cargo");
+                println!("[rad] Build system compiler: cargo");
             }
             let mut cmd = Command::new("cargo");
             cmd.arg("build")
@@ -596,7 +596,7 @@ pub fn build_and_install(
                 .arg("--jobs")
                 .arg(cores)
                 .current_dir(src_dir);
-            run_cmd(cmd, "cargo build", pkg.verbose)?;
+            run_cmd(cmd, "Build", pkg.verbose)?;
             let bin_dest = format!("{}{}/bin", dest_dir, prefix);
             fs::create_dir_all(&bin_dest).unwrap();
             let bin_src = format!("{}/target/release/{}", src_dir, pkg.name);
@@ -606,12 +606,12 @@ pub fn build_and_install(
 
         BuildSystem::Python => {
             if is_verbose() || pkg.verbose {
-                println!("[rad] build system compiler: python/pip");
+                println!("[rad] Build system compiler: python");
             }
             let mut cmd = Command::new("pip");
             cmd.args(["install", "--prefix", prefix, "--root", dest_dir, "."])
                 .current_dir(src_dir);
-            run_cmd(cmd, "pip install", pkg.verbose)?;
+            run_cmd(cmd, "Install", pkg.verbose)?;
         }
 
         BuildSystem::Manual {
@@ -619,7 +619,7 @@ pub fn build_and_install(
             install_commands,
         } => {
             if is_verbose() || pkg.verbose {
-                println!("[rad] build system: manual");
+                println!("[rad] Build system: manual");
             }
             let target_version = version::latest(&pkg.version)
                 .cloned()
@@ -640,7 +640,7 @@ pub fn build_and_install(
                     .env("RAD_CORES", &cores);
                 run_cmd(
                     cmd,
-                    &format!("build step {}/{}: {}", i + 1, build_commands.len(), cmd_str),
+                    &format!("Build step {}/{}: {}", i + 1, build_commands.len(), cmd_str),
                     pkg.verbose,
                 )?;
             }
@@ -662,7 +662,7 @@ pub fn build_and_install(
                     .env("RAD_CORES", &cores);
                 run_cmd(
                     cmd,
-                    &format!("install step {}/{}: {}", i + 1, install_commands.len(), cmd_str),
+                    &format!("Install step {}/{}: {}", i + 1, install_commands.len(), cmd_str),
                     pkg.verbose,
                 )?;
             }
@@ -670,7 +670,7 @@ pub fn build_and_install(
     }
 
     if is_verbose() || pkg.verbose {
-        println!("[rad] build finished");
+        println!("[rad] Build finished");
     }
     Ok(())
 }
@@ -700,14 +700,14 @@ pub fn run_cmd(mut cmd: Command, label: &str, verbose: bool) -> Result<(), Strin
         if let Some(pb) = pb {
             pb.finish_and_clear();
         }
-        println!("[rad] {} done", label);
+        println!("[rad] {} - done", label);
         Ok(())
     }
     else {
         if let Some(pb) = pb {
             pb.finish_and_clear();
         }
-        println!("[rad] {} failed", label);
+        println!("[rad] {} - failed", label);
         
         // On failure we still want the logs, even without -v, so print whatever the command produced before bubbling up the error
         io::Write::write_all(&mut io::stdout(), &output.stdout).ok();
@@ -774,7 +774,7 @@ pub fn cleanup_orphaned_files(pkg_name: &str, old_files: &HashSet<String>) {
         return;
     }
 
-    println!("[rad] cleaning {} orphaned file(s) from previous install", orphans.len());
+    println!("[rad] Cleaning {} orphaned file(s) from previous install", orphans.len());
     for path_str in orphans {
         let path = Path::new(path_str);
         if path.exists() {
@@ -782,7 +782,7 @@ pub fn cleanup_orphaned_files(pkg_name: &str, old_files: &HashSet<String>) {
                 Ok(_) => {
                     crate::remove::prune_empty_dirs(path);
                 }
-                Err(e) => eprintln!("[rad] error: could not remove orphan {}: {}", path_str, e),
+                Err(e) => eprintln!("[rad] {} could not remove orphan {}: {}", "Error:".red(), path_str, e),
             }
         }
     }
@@ -803,13 +803,13 @@ pub fn collect_files(root: &Path, current: &Path, manifest: &mut fs::File) -> st
 }
 
 pub fn merge(dest_dir: &str, install_path: &str, verbose: bool) -> Result<(), String> {
-    let pb = spinner("merging files...", verbose);
+    let pb = spinner("Merging files...", verbose);
     let dest_path = Path::new(dest_dir);
     let result = merge_dir(dest_path, dest_path, Path::new(install_path))
-        .map_err(|e| format!("merge failed: {}", e));
+        .map_err(|e| format!("Merge failed: {}", e));
     match &pb {
         Some(pb) => pb.finish_and_clear(),
-        None => println!("[rad] merge done"),
+        None => println!("[rad] Merge - done"),
     }
     result
 }

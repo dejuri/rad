@@ -184,7 +184,7 @@ You better know why you've installed it. Remember, the code is open, i think you
 
 Ok, so what now, you can create your repository of packages, install it, and rad will control it, it is good. This is the stability.
 
-You can just make a system built with rad, a Radian, and i have a project and done some progress. I use it on desktop but it is a hard experience sometimes, don't forget that it is an experimental project for now. But still, good luck, comrade, do what you find needed in this
+You can just make a system built with rad, a Radian, and i have a project and done some progress. I use it on desktop but it is a hard experience sometimes, don't forget that it is an experimental project for now. But still, good luck, Comrade, do what you find needed in this
 
 ## Contact
 Also, if you are interested in this project, i may need your help, because i work at this alone and this takes pretty much time. You can contact me there:
