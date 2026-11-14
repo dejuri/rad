@@ -399,7 +399,7 @@ pub fn package_info(pkg_name: &str, local: bool, processing: &mut HashSet<String
     let current_source = pkg.get_source_for_version(&target_version);
     println!(
         "[rad] Info about {}{}:\n  \
-        - Description: {}\n  \
+        - {}\n  \
         - Package origin: {}\n\
         {}  - Version: {}{}; Available: {}",
         atom.yellow(),
