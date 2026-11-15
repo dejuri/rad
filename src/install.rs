@@ -511,11 +511,7 @@ pub fn build_and_install(
             }
             run_cmd(cmd, "Configure", pkg.verbose)?;
             run_cmd(make_cmd(src_dir, &[&format!("-j{}", cores)]), "Make", pkg.verbose)?;
-            run_cmd(
-                make_cmd(src_dir, &[&format!("DESTDIR={}", dest_dir), "Install"]),
-                "make install",
-                pkg.verbose,
-            )?;
+            run_cmd(make_cmd(src_dir, &[&format!("DESTDIR={}", dest_dir), "install"]), "Install", pkg.verbose)?;
         }
 
         BuildSystem::Make => {
