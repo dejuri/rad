@@ -18,6 +18,14 @@ fn is_there(name: &str) -> Result<(), String> {
     if status.success() { Ok(()) } else { Err(format!("not found")) }
 }
 
+// Exit with a non-zero status if the installation failed
+fn run_install(result: Result<(), Box<dyn std::error::Error>>) {
+    if let Err(e) = result {
+        report_unprinted(e.as_ref());
+        std::process::exit(1);
+    }
+}
+
 fn main() {
     let config = load_config();
     let version = option_env!("CARGO_PKG_VERSION").unwrap_or("unknown");
@@ -161,13 +169,13 @@ fn main() {
         println!("Hi there, bro");
     } else if let Some(name) = install_pkg {
         let mut processing = HashSet::new();
-        let _ = install_package(&name, prefix, false, true, true, local, &mut processing);
+        run_install(install_package(&name, prefix, false, true, true, local, &mut processing));
     } else if let Some(name) = force_pkg {
         let mut processing = HashSet::new();
-        let _ = install_package(&name, prefix, true, true, true, local, &mut processing);
+        run_install(install_package(&name, prefix, true, true, true, local, &mut processing));
     } else if let Some(name) = build_pkg {
         let mut processing = HashSet::new();
-        let _ = install_package(&name, prefix, true, true, false, local, &mut processing);
+        run_install(install_package(&name, prefix, true, true, false, local, &mut processing));
     } else if let Some(name) = pkg_info {
         let mut processing = HashSet::new();
         package_info(&name, local, &mut processing);

@@ -13,9 +13,31 @@ use std::os::unix::fs as unix_fs;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::io;
+use std::fmt;
 use std::time::Duration;
 use indicatif::{ProgressBar, ProgressStyle};
 use sha2::{Digest, Sha256};
+
+#[derive(Debug)]
+pub struct InstallError(pub String);
+
+impl fmt::Display for InstallError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::error::Error for InstallError {}
+
+fn fail<T>(msg: impl Into<String>) -> Result<T, Box<dyn std::error::Error>> {
+    Err(Box::new(InstallError(msg.into())))
+}
+
+pub fn report_unprinted(e: &(dyn std::error::Error + 'static)) {
+    if e.downcast_ref::<InstallError>().is_none() {
+        eprintln!("[rad] {} {}", "Error:".red(), e);
+    }
+}
 
 fn spinner(msg: &str, verbose: bool) -> Option<ProgressBar> {
     if is_verbose() || verbose {
@@ -72,7 +94,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         let path = if pkg_name.ends_with(".toml") { pkg_name.to_string() } else { format!("{}.toml", pkg_name) };
         if !Path::new(&path).exists() {
             eprintln!("[rad] {} local package file not found: {}", "Error:".red(), path);
-            return Ok(());
+            return fail("local package file not found");
         }
         path
     } else {
@@ -80,7 +102,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
             Ok(p) => p,
             Err(e) => {
                 eprintln!("[rad] {} {}", "Error:".red(), e);
-                return Ok(());
+                return fail(format!("cannot fetch package '{}'", pkg_name));
             }
         }
     };
@@ -89,7 +111,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         Ok(p) => p,
         Err(e) => {
             eprintln!("[rad] {} {}", "Parse error:".red(), e);
-            return Ok(());
+            return fail(format!("cannot parse package '{}'", pkg_name));
         }
     };
     let (atom, origin_str) = if local {
@@ -112,7 +134,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
             Err(e) => {
                 eprintln!("[rad] {} {}", "Error:".red(), e);
                 processing.remove(pkg_name);
-                return Ok(());
+                return fail(format!("cannot resolve package '{}'", pkg_name));
             }
         }
     };
@@ -142,7 +164,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
                     pkg.version.join(", ")
                 );
                 processing.remove(pkg_name);
-                return Ok(());
+                return fail(format!("cannot resolve package '{}'", pkg_name));
             }
         }
         None => {
@@ -229,7 +251,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
             "Error:".red(),
             atom.yellow()
         );
-        return Ok(());
+        return fail(format!("circular dependency: {}", atom));
     }
 
     processing.insert(pkg.name.clone());
@@ -240,7 +262,17 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
             .unwrap_or_else(|_| dep.clone());
         if !is_installed(&dep_atom) {
             println!("[rad] resolving dependency: {}", dep);
-            install_package(dep, prefix, false, false, true, false, processing)?;
+            if let Err(e) = install_package(dep, prefix, false, false, true, false, processing) {
+                report_unprinted(e.as_ref());
+                eprintln!(
+                    "[rad] {} dependency {} failed, so {} was not built",
+                    "Error:".red(),
+                    dep.yellow(),
+                    atom.yellow()
+                );
+                processing.remove(&pkg.name);
+                return fail(format!("dependency {} of {} failed", dep, atom));
+            }
         }
     }
 
@@ -249,7 +281,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         Err(e) => {
             eprintln!("[rad] {} {}", "Error:".red(), e);
             processing.remove(&pkg.name);
-            return Ok(());
+            return fail(format!("cannot get sources of {}", atom));
         }
     };
 
@@ -262,7 +294,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         eprintln!("[rad] {} {}", "build error:".red(), e);
         spill::release(&pkg.name);
         processing.remove(&pkg.name);
-        return Ok(());
+        return fail(format!("build of {} failed", atom));
     }
 
     // 32 bit build if needed
@@ -271,7 +303,7 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         if let Err(e) = build_and_install(&pkg, &src_dir, prefix, &dest_dir, true) {
             eprintln!("[rad] {} {}", "multilib build error:".red(), e);
             processing.remove(&pkg.name);
-            return Ok(());
+            return fail(format!("32-bit build of {} failed", atom));
         }
     }
 
@@ -302,14 +334,14 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
         if let Err(e) = merge(&dest_dir, "/", pkg.verbose) {
             eprintln!("[rad] {} {}", "merge error:".red(), e);
             processing.remove(&pkg.name);
-            return Ok(());
+            return fail(format!("installing files of {} failed", atom));
         }
     }
     else{
         if let Err(e) = merge(&dest_dir, &format!("{}/{}", &config.build.bin_cache_dir, pkg.name), pkg.verbose) {
             eprintln!("[rad] {} {}", "merge error:".red(), e);
             processing.remove(&pkg.name);
-            return Ok(());
+            return fail(format!("installing files of {} failed", atom));
         }
     }
 
@@ -361,10 +393,23 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     }
 
     if needs_upgrade && going_install {
+        let mut failed_dependents = Vec::new();
         for dependent in find_dependents(&pkg.name) {
             println!("[rad] {} depends on updated {}, rebuilding", dependent, atom);
             let target = rebuild_target(&dependent);
-            install_package(&target, prefix, true, false, true, false, processing)?;
+            if let Err(e) = install_package(&target, prefix, true, false, true, false, processing) {
+                report_unprinted(e.as_ref());
+                failed_dependents.push(dependent);
+            }
+        }
+        if !failed_dependents.is_empty() {
+            eprintln!(
+                "[rad] {} {} was installed, but rebuilding these packages failed: {}",
+                "Error:".red(),
+                atom.yellow(),
+                failed_dependents.join(", ")
+            );
+            return fail("rebuilding dependents failed");
         }
     }
 
