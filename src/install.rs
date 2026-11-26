@@ -3,6 +3,7 @@ use crate::package::{BuildSystem, Package, fetch_package, parse_package, interpo
 use crate::index;
 use crate::version::{self, PackageSpec};
 use crate::meta::{write_meta, find_dependents};
+use crate::spill;
 use crate::verbosity::is_verbose;
 use colored::Colorize;
 use std::collections::HashSet;
@@ -253,12 +254,13 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     };
 
     // 64 bit build
-    let dest_dir = format!("/tmp/rad/image/{}", pkg.name);
+    let dest_dir = format!("/var/tmp/rad/build/image/{}", pkg.name);
     let _ = fs::remove_dir_all(&dest_dir);
     fs::create_dir_all(&dest_dir).unwrap();
 
     if let Err(e) = build_and_install(&pkg, &src_dir, prefix, &dest_dir, false) {
         eprintln!("[rad] {} {}", "build error:".red(), e);
+        spill::release(&pkg.name);
         processing.remove(&pkg.name);
         return Ok(());
     }
@@ -346,7 +348,8 @@ pub fn install_package(pkg_name: &str, prefix: &str, force: bool, askable: bool,
     }
 
     let _ = fs::remove_dir_all(&dest_dir);
-    let build_dir = format!("/tmp/rad/build/{}", pkg_name);
+    spill::release(&pkg.name);
+    let build_dir = format!("/var/tmp/rad/build/{}", pkg_name);
     let _ = fs::remove_dir_all(&build_dir);
 
     processing.remove(&pkg.name);
@@ -395,7 +398,7 @@ fn sha256_file(path: &str) -> io::Result<String> {
     }
     Ok(hex::encode(h.finalize()))
 }
-/// Mismatch is always an error; a missing hash is only a warning for now
+// Mismatch is always an error; a missing hash is only a warning for now
 fn verify_archive(pkg: &Package, path: &str, target_version: &str) -> Result<(), String> {
     let Some(expected) = pkg.get_sha256_for_version(target_version) else {
         eprintln!("[rad] {} {} has no sha256, source is not verified", "Warning:".yellow(), pkg.name);
@@ -413,7 +416,8 @@ fn verify_archive(pkg: &Package, path: &str, target_version: &str) -> Result<(),
     Ok(())
 }
 pub fn download_and_extract(pkg: &Package, target_version: &str) -> Result<String, String> {
-    let work_dir = format!("/tmp/rad/build/{}", pkg.name);
+    let work_dir = format!("/var/tmp/rad/build/{}", pkg.name);
+    spill::release(&pkg.name); // drop a stale spill mount from an earlier failed run
     fs::create_dir_all(&work_dir).map_err(|e| format!("cannot create build dir: {}", e))?;
 
     // Skip downloading if no source
@@ -671,15 +675,32 @@ pub fn build_and_install(
     Ok(())
 }
 
-pub fn run_cmd(mut cmd: Command, label: &str, verbose: bool) -> Result<(), String> {
+struct RunFail {
+    msg: String,
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+    captured: bool,
+    enospc: bool,
+}
 
+impl RunFail {
+    fn plain(msg: String) -> Self {
+        RunFail { msg, stdout: vec![], stderr: vec![], captured: false, enospc: false }
+    }
+}
+
+fn contains(hay: &[u8], needle: &[u8]) -> bool {
+    hay.windows(needle.len()).any(|w| w == needle)
+}
+
+fn run_once(cmd: &mut Command, label: &str, verbose: bool) -> Result<(), RunFail> {
     if is_verbose() || verbose {
         println!("[rad] {}...", label);
         let status = cmd
             .status()
-            .map_err(|e| format!("{} failed to start: {}", label, e))?;
+            .map_err(|e| RunFail::plain(format!("{} failed to start: {}", label, e)))?;
         if !status.success() {
-            return Err(format!("{} exited with status: {}", label, status));
+            return Err(RunFail::plain(format!("{} exited with status: {}", label, status)));
         }
         return Ok(());
     }
@@ -690,26 +711,49 @@ pub fn run_cmd(mut cmd: Command, label: &str, verbose: bool) -> Result<(), Strin
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()
-        .map_err(|e| format!("{} failed to start: {}", label, e))?;
+        .map_err(|e| RunFail::plain(format!("{} failed to start: {}", label, e)))?;
 
+    if let Some(pb) = pb {
+        pb.finish_and_clear();
+    }
     if output.status.success() {
-        if let Some(pb) = pb {
-            pb.finish_and_clear();
-        }
         println!("[rad] {} - done", label);
-        Ok(())
+        return Ok(());
     }
-    else {
-        if let Some(pb) = pb {
-            pb.finish_and_clear();
+    let needle = b"No space left on device";
+    Err(RunFail {
+        msg: format!("{} exited with status: {}", label, output.status),
+        enospc: contains(&output.stdout, needle) || contains(&output.stderr, needle),
+        stdout: output.stdout,
+        stderr: output.stderr,
+        captured: true,
+    })
+}
+
+pub fn run_cmd(mut cmd: Command, label: &str, verbose: bool) -> Result<(), String> {
+    let mut fail = match run_once(&mut cmd, label, verbose) {
+        Ok(()) => return Ok(()),
+        Err(f) => f,
+    };
+
+    // Build dir (tmpfs) full? Move the build tree to disk and retry this step once.
+    if let Some(root) = cmd.get_current_dir().and_then(spill::build_root_of) {
+        if (fail.enospc || spill::low_on_space(&root)) && spill::try_spill(&root) {
+            println!("[rad] {} - retrying with the build tree on disk", label);
+            fail = match run_once(&mut cmd, label, verbose) {
+                Ok(()) => return Ok(()),
+                Err(f) => f,
+            };
         }
-        println!("[rad] {} - failed", label);
-        
-        // On failure we still want the logs, even without -v, so print whatever the command produced before bubbling up the error
-        io::Write::write_all(&mut io::stdout(), &output.stdout).ok();
-        io::Write::write_all(&mut io::stderr(), &output.stderr).ok();
-        Err(format!("{} exited with status: {}", label, output.status))
     }
+
+    if fail.captured {
+        println!("[rad] {} - failed", label);
+        // On failure we still want the logs, even without -v
+        io::Write::write_all(&mut io::stdout(), &fail.stdout).ok();
+        io::Write::write_all(&mut io::stderr(), &fail.stderr).ok();
+    }
+    Err(fail.msg)
 }
 
 pub fn make_cmd(dir: &str, args: &[&str]) -> Command {

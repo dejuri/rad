@@ -7,27 +7,57 @@ use std::io;
 
 const DB_PATH: &str = "/var/lib/rad/installed";
 
-pub fn clear_cache() {
-    let config = load_config();
-    if Path::new("/tmp/rad").exists() {
-        match fs::remove_dir_all("/tmp/rad") {
-            Ok(_) => println!("[rad] succesfully removed {}", "/tmp/rad".yellow()),
-            Err(e) => eprintln!("[rad] {} couldn't remove {}: {}", "Error:".red(), "/tmp/rad".yellow(), e),
+fn clear_dir_contents(dir: &Path) -> io::Result<()> {
+    if !dir.exists() {
+        return Ok(());
+    }
+
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        let file_type = entry.file_type()?;
+
+        if file_type.is_dir() {
+            fs::remove_dir_all(&path)?;
+        } else {
+            fs::remove_file(&path)?;
         }
     }
-    else {
-        println!("[rad] {} doesn't exist, nothing to clear", "/tmp/rad".yellow());
+
+    Ok(())
+}
+
+pub fn clear_cache() {
+    let config = load_config();
+    let build_dir = Path::new("/var/tmp/rad/build");
+    if build_dir.exists() {
+        match clear_dir_contents(build_dir) {
+            Ok(_) => println!(
+                "[rad] Succesfully cleared {}",
+                build_dir.display().to_string().yellow()
+            ),
+            Err(e) => eprintln!(
+                "[rad] {} couldn't clear {}: {}",
+                "Error:".red(),
+                build_dir.display().to_string().yellow(),
+                e
+            ),
+        }
+    } else {
+        println!("[rad] {} {} doesn't exist! This means we have nothing to clear, but if it doesn't exist it is not mounted as tmpfs. Be carefully, your hard drive will die faster if you don't use build dir as a tmpfs. You should add the next line to /etc/fstab:", "Warning:".yellow(), "/var/tmp/rad/build".yellow());
+        println!("  - {}", "tmpfs	/var/tmp/rad/build		tmpfs		rw,nosuid,nodev,size=<Max TMPFS Size>,mode=0755	0	0".cyan().bold());
+        println!("[rad] Be carefully with this, you should know what are you doing")
     }
     if Path::new(&config.build.bin_cache_dir).exists() {
         match fs::remove_dir_all(&config.build.bin_cache_dir) {
-            Ok(_) => println!("[rad] succesfully removed {}", config.build.bin_cache_dir.yellow()),
+            Ok(_) => println!("[rad] Succesfully removed {}", config.build.bin_cache_dir.yellow()),
             Err(e) => eprintln!("[rad] {} couldn't remove {}: {}", "Error:".red(), config.build.bin_cache_dir.yellow(), e),
         }
     }
     else {
         println!("[rad] {} doesn't exist, nothing to clear", config.build.bin_cache_dir.yellow());
     }
-    println!("[rad] cache clearing completed")
+    println!("[rad] Cache clearing completed, Comrade!")
 }
 
 fn ask_to_remove() -> io::Result<()> {
@@ -47,7 +77,7 @@ fn ask_to_remove() -> io::Result<()> {
             std::process::exit(0);     
         }
         _ => {
-            eprintln!("[rad] I don't understand you");
+            eprintln!("[rad] What, Comrade? Ich verstehe nicht");
             let _ = ask_to_remove();
             return Ok(()); 
         }

@@ -25,6 +25,8 @@ pub struct BuildConfig {
     pub bin_cache_dir: String,
     #[serde(default)]
     pub allow_unfree: bool,
+    #[serde(default)]
+    pub spill_dir: String,
 }
 
 #[derive(Deserialize, Default)]
@@ -52,6 +54,7 @@ pub fn load_config() -> Config {
             match toml::from_str::<Config>(&content) {
                 Ok(mut config) => {
                     config.build.bin_cache_dir = expand_home(&config.build.bin_cache_dir);
+                    config.build.spill_dir = expand_home(&config.build.spill_dir);
                     config.repo.overlays = config.repo.overlays
                         .into_iter()
                         .map(|p| expand_home(&p))

@@ -4,6 +4,7 @@ pub mod package;
 pub mod remove;
 pub mod index;
 pub mod meta;
+pub mod spill;
 pub mod verbosity;
 pub mod version;
 

@@ -8,6 +8,9 @@ cores = 2
 ask = true
 bin_cache_dir = "~/.rad/bin"
 allow_unfree = false
+# If /tmp (tmpfs) fills up during a build, move the build tree here and continue.
+# Leave empty to disable. Must NOT be on tmpfs.
+spill_dir = "/var/tmp/rad/spill"
 
 [repo]
 url = "https://raw.githubusercontent.com/dejuri/radpkg/main/stable-13"

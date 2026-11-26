@@ -73,7 +73,7 @@ fn cmp_token(a: &Token, b: &Token) -> Ordering {
     }
 }
 
-/// Compares two version strings segment by segment
+// Compares two version strings segment by segment
 pub fn compare(a: &str, b: &str) -> Ordering {
     let ta = tokenize(a);
     let tb = tokenize(b);
@@ -92,7 +92,7 @@ pub fn compare(a: &str, b: &str) -> Ordering {
     }
 }
 
-/// Order of a version that has these extra tokens relative to the same version without them
+// Order of a version that has these extra tokens relative to the same version without them
 fn tail_order(rest: &[Token]) -> Ordering {
     if rest.iter().all(|t| matches!(t, Token::Num(n) if n == "0")) {
         return Ordering::Equal;

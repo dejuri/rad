@@ -144,7 +144,7 @@ struct RawToml {
 }
 impl Package {
 
-    /// Get source for the corresponding version
+    // Get source for the corresponding version
     pub fn get_source_for_version(&self, target_ver: &str) -> String {
         if let Some(idx) = self.version.iter().position(|v| v == target_ver) {
             self.source
@@ -156,7 +156,7 @@ impl Package {
         }
     }
     
-    /// Same for sha256
+    // Same for sha256
     pub fn get_sha256_for_version(&self, target_ver: &str) -> Option<String> {
         let idx = self.version.iter().position(|v| v == target_ver).unwrap_or(0);
         self.sha256.get(idx).map(|s| s.trim().to_lowercase())
